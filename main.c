@@ -36,6 +36,8 @@ typedef struct {
     char playField[FIELD_W*FIELD_H];
     char currentPiece[PIECEBUF_SIZE];
     PiecePos currentPos;
+    PiecePos heldPiece;
+    char didHold;
     unsigned char fallTimer, fallRate;
     int score;
 } PlayerState;
@@ -282,7 +284,7 @@ void draw_field(char* field, char x, char y) {
     }
 }
 
-void draw_piece(PiecePos* pos, char* piece, char offsetX, char offsetY) {
+void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY) {
     char r, c, i = 0;
     vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
@@ -454,11 +456,21 @@ void initPlayerState(PlayerState* player) {
 }
 
 void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
-    char oldX, oldY;
+    char oldX, oldY, tmp;
     oldX = player->currentPos.x;
         oldY = player->currentPos.y;
         if(player->fallTimer < player->fallRate){
             player->currentPos.y++;
+        } else if(!player->didHold && (inputs & INPUT_MASK_C & ~last_inputs)) {
+            if(player->heldPiece.t == TET_COUNT) {
+                tmp = rnd();
+            } else {
+                tmp = player->heldPiece.t;
+            }
+            player->heldPiece.t = player->currentPos.t;
+            init_piece(tmp,  &(player->currentPos), player->currentPiece);
+            player->fallTimer = 255 - player->fallRate;
+            player->didHold = 1;
         } else if(inputs & INPUT_MASK_UP & ~last_inputs) {
             while(test_at(&(player->currentPos), player->currentPiece, player->playField)) {
                 oldY = player->currentPos.y;
@@ -487,6 +499,7 @@ void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
 
                 init_piece(rnd(),  &(player->currentPos), player->currentPiece);
                 player->fallTimer = 255 - player->fallRate;
+                player->didHold = 0;
             } else {
                 player->currentPos.y = oldY;
                 player->currentPos.x = oldX;   
@@ -498,12 +511,25 @@ void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
 void drawPlayerState(PlayerState* player) {
     flagsMirror |= DMA_TRANS;
     *dma_flags = flagsMirror;
-    FillRect(player->field_offset_x, player->field_offset_y, 4 * FIELD_W, 4 * FIELD_H, 0);
+    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, GRID_SPACING * FIELD_H, 0);
 
     flagsMirror &= ~DMA_TRANS;
     *dma_flags = flagsMirror;
     draw_field(player->playField, player->field_offset_x, player->field_offset_y);
     draw_piece(&(player->currentPos), player->currentPiece, player->field_offset_x, player->field_offset_y);
+
+
+    FillRect(player->field_offset_x + player->heldPiece.x*GRID_SPACING - GRID_SPACING*2,
+        player->field_offset_y + player->heldPiece.y*GRID_SPACING - GRID_SPACING*2,
+        GRID_SPACING * PIECEBUF_WIDTH, GRID_SPACING * PIECEBUF_WIDTH, 1);
+
+    if(player->heldPiece.t != TET_COUNT) {
+        draw_piece(
+            &(player->heldPiece),
+            &(tetrominoes[tetro_index[player->heldPiece.t]]),
+            player->field_offset_x, player->field_offset_y);
+    }
+
     FillRect(player->field_offset_x, player->field_offset_y, 4 * FIELD_W, 6, 3);
 
     cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W);
@@ -541,11 +567,21 @@ void main() {
 
     initPlayerState(&(players[0]));
     players[0].field_offset_x = 8;
-    players[0].field_offset_y = 4;
+    players[0].field_offset_y = 16;
+    players[0].heldPiece.x = 14;
+    players[0].heldPiece.y = 5;
+    players[0].heldPiece.rot = 0;
+    players[0].heldPiece.t = TET_COUNT;
+    players[0].didHold = 0;
 
     initPlayerState(&(players[1]));
     players[1].field_offset_x = 80;
-    players[1].field_offset_y = 4;
+    players[1].field_offset_y = 16;
+    players[1].heldPiece.x = -4;
+    players[1].heldPiece.y = 15;
+    players[1].heldPiece.rot = 0;
+    players[1].heldPiece.t = TET_COUNT;
+    players[1].didHold = 0;
 
     while(1){
         updateInputs();
