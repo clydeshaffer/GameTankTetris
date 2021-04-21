@@ -9,7 +9,7 @@
 #define SPRITE_CHAR_BLANK_Y 0x70
 
 #define FIELD_W 10
-#define FIELD_H 20
+#define FIELD_H 22
 #define GRID_SPACING 4
 #define SPAWN_ROW 1
 #define SPAWN_COL 4
@@ -31,12 +31,23 @@ typedef struct {
     char x, y, rot, t;
 } PiecePos;
 
+typedef struct {
+    char field_offset_x, field_offset_y;
+    char playField[FIELD_W*FIELD_H];
+    char currentPiece[PIECEBUF_SIZE];
+    PiecePos currentPos;
+    unsigned char fallTimer, fallRate;
+    int score;
+} PlayerState;
+
+PlayerState players[2];
+
 int inputs = 0, last_inputs = 0;
+int inputs2 = 0, last_inputs2 = 0;
+
 char frameflag, frameflip = DMA_VRAM_PAGE, flagsMirror, cursorX, cursorY;
-char playField[FIELD_W*FIELD_H];
-char currentPiece[PIECEBUF_SIZE];
+
 char tmpPieceBuf[PIECEBUF_SIZE];
-PiecePos currentPos;
 
 const unsigned char rotation_matrix[PIECEBUF_SIZE] = {
     20,15,10, 5, 0,
@@ -153,6 +164,11 @@ void updateInputs(){
 
     last_inputs = inputs;
     inputs = ~((((int) inputsB) << 8) | inputsA);
+
+    inputsA = *gamepad_2;
+    inputsB = *gamepad_2;
+    last_inputs2 = inputs2;
+    inputs2 = ~((((int) inputsB) << 8) | inputsA);
 }
 
 void Sleep(int frames) {
@@ -394,7 +410,7 @@ void tryRotate(PiecePos* pos, char* pieceBuf, char* field, char direction) {
         pos->y -= k2o[kicksrc[i] & 15];
         pos->x -= k2o[(kickdst[i] >> 4) & 15];
         pos->y += k2o[kickdst[i] & 15];
-        if(1 == test_at(&currentPos, pieceBuf, field)) {
+        if(1 == test_at(pos, pieceBuf, field)) {
             pos->rot = newRot;
             return;
         }
@@ -429,10 +445,73 @@ int checkLineClears(char* playField) {
     return clearCount;
 }
 
-void main() {
+void initPlayerState(PlayerState* player) {
+    init_piece(rnd(), &(player->currentPos), player->currentPiece);
+    player->fallRate = 8;
+    player->fallTimer = 0;
+    player->score = 0;
+}
+
+void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
     char oldX, oldY;
-    unsigned char fallTimer = 0, fallRate = 8;
-    int score = 0;
+    oldX = player->currentPos.x;
+        oldY = player->currentPos.y;
+        if(player->fallTimer < player->fallRate){
+            player->currentPos.y++;
+        } else if(inputs & INPUT_MASK_UP & ~last_inputs) {
+            while(test_at(&(player->currentPos), player->currentPiece, player->playField)) {
+                oldY = player->currentPos.y;
+                player->currentPos.y++;
+            }
+        } else if(inputs & INPUT_MASK_A & ~last_inputs) {
+            tryRotate(&(player->currentPos), player->currentPiece, player->playField, -1);
+        } else if(inputs & INPUT_MASK_B & ~last_inputs) {
+            tryRotate(&(player->currentPos),player-> currentPiece, player->playField, 1);
+        } else if(inputs & INPUT_MASK_DOWN) {
+            player->currentPos.y++;
+        } else {
+            if(inputs & INPUT_MASK_LEFT) {
+                player->currentPos.x--;
+            }
+            if(inputs & INPUT_MASK_RIGHT) {
+                player->currentPos.x++;
+            }
+        }
+
+        if(0 == test_at(&(player->currentPos), player->currentPiece, player->playField)){
+            if(player->currentPos.y > oldY) {
+                player->currentPos.y = oldY;
+                place_at(&(player->currentPos), player->currentPiece, player->playField);
+                player->score += checkLineClears(player->playField);
+
+                init_piece(rnd() % 7,  &(player->currentPos), player->currentPiece);
+                player->fallTimer = 255 - player->fallRate;
+            } else {
+                player->currentPos.y = oldY;
+                player->currentPos.x = oldX;   
+            }
+        }
+        player->fallTimer+=player->fallRate;
+}
+
+void drawPlayerState(PlayerState* player) {
+    flagsMirror |= DMA_TRANS;
+    *dma_flags = flagsMirror;
+    FillRect(player->field_offset_x, player->field_offset_y, 4 * FIELD_W, 4 * FIELD_H, 0);
+
+    flagsMirror &= ~DMA_TRANS;
+    *dma_flags = flagsMirror;
+    draw_field(player->playField, player->field_offset_x, player->field_offset_y);
+    draw_piece(&(player->currentPos), player->currentPiece, player->field_offset_x, player->field_offset_y);
+    FillRect(player->field_offset_x, player->field_offset_y, 4 * FIELD_W, 6, 3);
+
+    cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W);
+    cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H);
+    printnum(player->score);
+}
+
+void main() {
+    
     asm sei; /* Disable IRQ vector */
     
     /* 
@@ -459,65 +538,29 @@ void main() {
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
 
-    init_piece(rnd(), &currentPos, currentPiece);
+    initPlayerState(&(players[0]));
+    players[0].field_offset_x = 8;
+    players[0].field_offset_y = 4;
+
+    initPlayerState(&(players[1]));
+    players[1].field_offset_x = 80;
+    players[1].field_offset_y = 4;
 
     while(1){
         updateInputs();
 
-        oldX = currentPos.x;
-        oldY = currentPos.y;
-        if(fallTimer < fallRate){
-            currentPos.y++;
-        } else if(inputs & INPUT_MASK_UP & ~last_inputs) {
-            while(test_at(&currentPos, currentPiece, playField)) {
-                oldY = currentPos.y;
-                currentPos.y++;
-            }
-        } else if(inputs & INPUT_MASK_A & ~last_inputs) {
-            tryRotate(&currentPos, currentPiece, playField, -1);
-        } else if(inputs & INPUT_MASK_B & ~last_inputs) {
-            tryRotate(&currentPos, currentPiece, playField, 1);
-        } else if(inputs & INPUT_MASK_DOWN) {
-            currentPos.y++;
-        } else if(inputs & INPUT_MASK_LEFT) {
-            currentPos.x--;
-        } else if(inputs & INPUT_MASK_RIGHT) {
-            currentPos.x++;
-        }
+        updatePlayerState(&(players[0]), inputs, last_inputs);
+        updatePlayerState(&(players[1]), inputs2, last_inputs2);
 
-        if(0 == test_at(&currentPos, currentPiece, playField)){
-            if(currentPos.y > oldY) {
-                currentPos.y = oldY;
-                place_at(&currentPos, currentPiece, playField);
-                score += checkLineClears(playField);
-
-                init_piece(rnd() % 7,  &currentPos, currentPiece);
-                fallTimer = 255 - fallRate;
-            } else {
-                currentPos.y = oldY;
-                currentPos.x = oldX;   
-            }
-        }
-
-        flagsMirror |= DMA_TRANS;
-        *dma_flags = flagsMirror;
         CLS(3);
-        FillRect(16, 16, 40, 80, 0);
 
-        flagsMirror &= ~DMA_TRANS;
-        *dma_flags = flagsMirror;
-        draw_field(playField, 16, 16);
-        draw_piece(&currentPos, currentPiece, 16, 16);
-
-        cursorX = 100;
-        cursorY = 40;
-        printnum(score);
+        drawPlayerState(&(players[0]));
+        drawPlayerState(&(players[1]));
 
         frameflip ^= DMA_PAGE_OUT | DMA_VRAM_PAGE;
         flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
         *dma_flags = flagsMirror;
         Sleep(1);
-        fallTimer+=fallRate;
     }
 }
 
