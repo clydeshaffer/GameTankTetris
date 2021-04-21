@@ -133,10 +133,9 @@ int xorshift16(int x) {
     return x;
 }
 
-int rnd_seed = 0;
+int rnd_seed = 234;
 
 int rnd() {
-    /*rnd_seed = xorshift16(rnd_seed);
     rnd_seed = xorshift16(rnd_seed);
     rnd_seed = xorshift16(rnd_seed);
     rnd_seed = xorshift16(rnd_seed);
@@ -151,8 +150,8 @@ int rnd() {
     rnd_seed = xorshift16(rnd_seed);
     rnd_seed = xorshift16(rnd_seed);
     rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);*/
-    rnd_seed++;
+    rnd_seed = xorshift16(rnd_seed);
+    rnd_seed = xorshift16(rnd_seed);
     return rnd_seed;
 }
 
@@ -301,6 +300,8 @@ void draw_piece(PiecePos* pos, char* piece, char offsetX, char offsetY) {
 
 void init_piece(char type, PiecePos* pos, char* dest) {
     char r, c, i;
+    type &= 0x7F;
+    type = type % 7;
     i = tetro_index[type];
     pos->x = SPAWN_COL;
     pos->y = SPAWN_ROW;
@@ -484,7 +485,7 @@ void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
                 place_at(&(player->currentPos), player->currentPiece, player->playField);
                 player->score += checkLineClears(player->playField);
 
-                init_piece(rnd() % 7,  &(player->currentPos), player->currentPiece);
+                init_piece(rnd(),  &(player->currentPos), player->currentPiece);
                 player->fallTimer = 255 - player->fallRate;
             } else {
                 player->currentPos.y = oldY;
