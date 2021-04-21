@@ -19,4 +19,7 @@ Inflate insert inflate_e000_0200.obx
     KDATA
     xdef GameSprites
 GameSprites insert gamesprites.gtg.deflate
+
+    xdef DynaWave
+DynaWave    insert  dynawave.acp.deflate
     ENDS

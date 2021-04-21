@@ -1,4 +1,5 @@
 #include "gametank.h"
+#include "dynawave.h"
 
 #define SPRITE_CHAR_W 8
 #define SPRITE_CHAR_H 8
@@ -31,13 +32,16 @@ typedef struct {
     char x, y, rot, t;
 } PiecePos;
 
+#define PLAYER_DEAD 1
+#define PLAYER_DIDHOLD 2
+
 typedef struct {
     char field_offset_x, field_offset_y;
     char playField[FIELD_W*FIELD_H];
     char currentPiece[PIECEBUF_SIZE];
     PiecePos currentPos;
     PiecePos heldPiece;
-    char didHold;
+    char flags;
     unsigned char fallTimer, fallRate;
     int score;
 } PlayerState;
@@ -226,7 +230,6 @@ void printnum(int num) {
 }
 
 void print(char* str) {
-    *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     vram[WIDTH] = SPRITE_CHAR_W;
     vram[HEIGHT] = SPRITE_CHAR_H;
     while(*str != 0) {
@@ -453,15 +456,21 @@ void initPlayerState(PlayerState* player) {
     player->fallRate = 8;
     player->fallTimer = 0;
     player->score = 0;
+    player->heldPiece.rot = 0;
+    player->heldPiece.t = TET_COUNT;
+    player->flags = 0;
 }
 
 void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
     char oldX, oldY, tmp;
+    if(player->flags & PLAYER_DEAD) {
+        return;
+    }
     oldX = player->currentPos.x;
         oldY = player->currentPos.y;
         if(player->fallTimer < player->fallRate){
             player->currentPos.y++;
-        } else if(!player->didHold && (inputs & INPUT_MASK_C & ~last_inputs)) {
+        } else if(!(player->flags&PLAYER_DIDHOLD) && (inputs & INPUT_MASK_C & ~last_inputs)) {
             if(player->heldPiece.t == TET_COUNT) {
                 tmp = rnd();
             } else {
@@ -470,7 +479,7 @@ void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             player->heldPiece.t = player->currentPos.t;
             init_piece(tmp,  &(player->currentPos), player->currentPiece);
             player->fallTimer = 255 - player->fallRate;
-            player->didHold = 1;
+            player->flags |= PLAYER_DIDHOLD;
         } else if(inputs & INPUT_MASK_UP & ~last_inputs) {
             while(test_at(&(player->currentPos), player->currentPiece, player->playField)) {
                 oldY = player->currentPos.y;
@@ -492,14 +501,17 @@ void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
         }
 
         if(0 == test_at(&(player->currentPos), player->currentPiece, player->playField)){
-            if(player->currentPos.y > oldY) {
+            if(player->currentPos.x == oldX && player->currentPos.y == oldY) {
+                player->flags |= PLAYER_DEAD;
+            } else if(player->currentPos.y > oldY) {
                 player->currentPos.y = oldY;
+
                 place_at(&(player->currentPos), player->currentPiece, player->playField);
                 player->score += checkLineClears(player->playField);
 
                 init_piece(rnd(),  &(player->currentPos), player->currentPiece);
                 player->fallTimer = 255 - player->fallRate;
-                player->didHold = 0;
+                player->flags &= ~PLAYER_DIDHOLD;
             } else {
                 player->currentPos.y = oldY;
                 player->currentPos.x = oldX;   
@@ -535,6 +547,15 @@ void drawPlayerState(PlayerState* player) {
     cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W);
     cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H);
     printnum(player->score);
+
+    if(player->flags & PLAYER_DEAD) {
+        cursorX = player->field_offset_x + (GRID_SPACING * (FIELD_W/2 - 5));
+        cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H/2);
+        print("game");
+        cursorX = player->field_offset_x + (GRID_SPACING * ((FIELD_W/2) - 3));
+        cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H/2) + SPRITE_CHAR_H;
+        print("over");
+    }
 }
 
 void main() {
@@ -547,6 +568,9 @@ void main() {
      */
     flagsMirror = DMA_NMI | DMA_IRQ;
     *dma_flags = flagsMirror;
+
+    *audio_rate = 0x7F;
+
     asm {
         xref GameSprites
         xref InflateParams
@@ -560,7 +584,20 @@ void main() {
         LDA #$40
         STA InflateParams+3
         JSR Inflate
+        xref DynaWave
+        LDA #<DynaWave
+        STA InflateParams
+        LDA #>DynaWave
+        STA InflateParams+1
+        LDA #$00
+        STA InflateParams+2
+        LDA #$30
+        STA InflateParams+3
+        JSR Inflate
     };
+
+    *audio_reset = 0;
+    *audio_rate = 255;
 
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
@@ -570,18 +607,12 @@ void main() {
     players[0].field_offset_y = 16;
     players[0].heldPiece.x = 14;
     players[0].heldPiece.y = 5;
-    players[0].heldPiece.rot = 0;
-    players[0].heldPiece.t = TET_COUNT;
-    players[0].didHold = 0;
 
     initPlayerState(&(players[1]));
     players[1].field_offset_x = 80;
     players[1].field_offset_y = 16;
     players[1].heldPiece.x = -4;
     players[1].heldPiece.y = 15;
-    players[1].heldPiece.rot = 0;
-    players[1].heldPiece.t = TET_COUNT;
-    players[1].didHold = 0;
 
     while(1){
         updateInputs();

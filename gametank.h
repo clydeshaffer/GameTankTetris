@@ -1,4 +1,8 @@
+#define audio_reset ((volatile char *) 0x2000)
+#define audio_nmi ((volatile char *) 0x2001)
+#define audio_rate ((volatile char *) 0x2006)
 #define dma_flags ((volatile char *) 0x2007)
+#define aram ((volatile char *) 0x3000)
 #define vram ((volatile char *) 0x4000)
 #define vram_VX ((volatile char *) 0x4000)
 #define vram_VY ((volatile char *) 0x4001)
