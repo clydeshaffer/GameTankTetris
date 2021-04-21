@@ -1,26 +1,22 @@
-//v1.0
-//>> 2017 05 26
-//draw background               o
-//draw blocks                   o
-//rotate blocks.                o
-//go left, go right the block.  o
-//>> 2017 05 29
-//left, right limit             o
-//rotate near the wall          o
-//show the second block         o
-//>> 2017 05 30
-//drop the block.               o
-//collision with bottom wall    o
-//delete the correct line       o
-//score                         o
-//game over                     o
-//space button                  o
-//save the best score           o
-
 #include "gametank.h"
+
+#define SPRITE_CHAR_W 8
+#define SPRITE_CHAR_H 8
+#define SPRITE_ROW_0_F 0x60
+#define SPRITE_ROW_G_V 0x68
+#define SPRITE_ROW_W_Z 0x70
+#define SPRITE_CHAR_BLANK_X 0x70
+#define SPRITE_CHAR_BLANK_Y 0x70
 
 #define FIELD_W 10
 #define FIELD_H 20
+#define GRID_SPACING 4
+#define SPAWN_ROW 1
+#define SPAWN_COL 4
+
+#define PIECEBUF_WIDTH 5
+#define PIECEBUF_SIZE 25
+#define NUM_KICKTESTS 5
 
 #define TET_I 0
 #define TET_J 1
@@ -29,6 +25,7 @@
 #define TET_S 4
 #define TET_T 5
 #define TET_Z 6
+#define TET_COUNT 7
 
 typedef struct {
     char x, y, rot, t;
@@ -37,11 +34,11 @@ typedef struct {
 int inputs = 0, last_inputs = 0;
 char frameflag, frameflip = DMA_VRAM_PAGE, flagsMirror, cursorX, cursorY;
 char playField[FIELD_W*FIELD_H];
-char currentPiece[25];
-char tmpPieceBuf[25];
+char currentPiece[PIECEBUF_SIZE];
+char tmpPieceBuf[PIECEBUF_SIZE];
 PiecePos currentPos;
 
-const unsigned char rotation_matrix[25] = {
+const unsigned char rotation_matrix[PIECEBUF_SIZE] = {
     20,15,10, 5, 0,
     21,16,11, 6, 1,
     22,17,12, 7, 2,
@@ -49,10 +46,13 @@ const unsigned char rotation_matrix[25] = {
     24,19,14, 9, 4
 };
 
-const unsigned char tetro_index[7] = {0, 25, 50, 75, 100, 125, 150};
+const unsigned char tetro_index[TET_COUNT] = {0, PIECEBUF_SIZE, PIECEBUF_SIZE*2, PIECEBUF_SIZE*3, PIECEBUF_SIZE*4, PIECEBUF_SIZE*5, PIECEBUF_SIZE*6};
 
-/*I J L O S T Z order*/
-const unsigned char tetrominoes[25*7] = {
+/*
+ * Tetrominoes in I J L O S T Z order
+ * Values represent the color, 0=clear
+ */
+const unsigned char tetrominoes[PIECEBUF_SIZE*7] = {
       0,  0,  0,  0,  0,
       0,  0,  0,  0,  0,
       0,244,244,244,244,
@@ -96,8 +96,10 @@ const unsigned char tetrominoes[25*7] = {
       0,  0,  0,  0,  0,
 };
 
+/* Convert half-byte kick offsets to actual signed chars */
 char k2o[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1};
 
+/* Every shape except I and O */
 char kicks_main[20] = {
     0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x10, 0x1F, 0x02, 0x12,
@@ -112,24 +114,8 @@ char kicks_I[20] = {
     0x01, 0x01, 0x01, 0x0F, 0x02,
 };
 
-void binprint(int num) {
-    int i;
-    vram[VY] = 0;
-    vram[GX] = 0x80;
-    vram[GY] = 0;
-    vram[WIDTH] = 6;
-    vram[HEIGHT] = 8;
-    for(i = 0; i < 128; i+=8) {
-        vram[VX] = i;
-        vram[COLOR] = (num & 1) - 1;
-        vram[START] = 1;
-        asm wai;
-        num = num >> 1;
-    }
-}
-
 int xorshift16(int x) {
-    x |= x == 0;   // if x == 0, set x = 1 instead
+    x |= x == 0;   /* if x == 0, set x = 1 instead */
     x ^= (x & 0x07ff) << 5;
     x ^= x >> 7;
     x ^= (x & 0x0003) << 14;
@@ -159,8 +145,6 @@ int rnd() {
     return rnd_seed;
 }
 
-
-//get keyboard input.
 void updateInputs(){
     char inputsA, inputsB;
     inputsA = *gamepad_2;
@@ -182,10 +166,10 @@ void Sleep(int frames) {
 void CLS(char c) {
     vram[VX] = 0;
     vram[VY] = 0;
-    vram[GX] = 0x80;
+    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
-    vram[WIDTH] = 127;
-    vram[HEIGHT] = 127;
+    vram[WIDTH] = SCREEN_WIDTH-1;
+    vram[HEIGHT] = SCREEN_HEIGHT-1;
     vram[COLOR] = ~c;
     vram[START] = 1;
     asm wai;
@@ -194,7 +178,7 @@ void CLS(char c) {
 void FillRect(char x, char y, char w, char h, char c) {
     vram[VX] = x;
     vram[VY] = y;
-    vram[GX] = 0x80;
+    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
     vram[WIDTH] = w;
     vram[HEIGHT] = h;
@@ -206,13 +190,13 @@ void FillRect(char x, char y, char w, char h, char c) {
 void printnum(int num) {
     vram[VX] = cursorX;
     vram[VY] = cursorY;
-    vram[GY] = 0x60;
-    vram[WIDTH] = 8;
-    vram[HEIGHT] = 8;
+    vram[GY] = SPRITE_ROW_0_F;
+    vram[WIDTH] = SPRITE_CHAR_W;
+    vram[HEIGHT] = SPRITE_CHAR_H;
     if(num == 0) {
         vram[GX] = 0;
         vram[START] = 1;
-        //asm wai;
+        /*asm wai; DMA will likely finish first*/
     } else {
         while(num != 0) {
             vram[GX] = (num % 10) << 3;
@@ -226,22 +210,24 @@ void printnum(int num) {
 
 void print(char* str) {
     *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
+    vram[WIDTH] = SPRITE_CHAR_W;
+    vram[HEIGHT] = SPRITE_CHAR_H;
     while(*str != 0) {
         if(*str >= '0' && *str <= '9') {
             vram[GX] = (*str - '0') << 3;
-            vram[GY] = 0x60;
+            vram[GY] = SPRITE_ROW_0_F;
         } else if(*str >= 'a' && *str <= 'f') {
             vram[GX] = ((*str - 'a') << 3) + 0x50;
-            vram[GY] = 0x60;
+            vram[GY] = SPRITE_ROW_0_F;
         } else if(*str >= 'g' && *str <= 'v') {
             vram[GX] = (*str - 'g') << 3;
-            vram[GY] = 0x68;
+            vram[GY] = SPRITE_ROW_G_V;
         } else if(*str >= 'w' && *str <= 'z') {
             vram[GX] = (*str - 'w') << 3;
-            vram[GY] = 0x70;
+            vram[GY] = SPRITE_ROW_W_Z;
         } else {
-            vram[GX] = 0x70;
-            vram[GY] = 0x70;
+            vram[GX] = SPRITE_CHAR_BLANK_X;
+            vram[GY] = SPRITE_CHAR_BLANK_Y;
         }
         if(*str == '\n') {
             cursorX = 0;
@@ -249,8 +235,6 @@ void print(char* str) {
         } else {
             vram[VX] = cursorX;
             vram[VY] = cursorY;
-            vram[WIDTH] = 8;
-            vram[HEIGHT] = 8;
             vram[START] = 1;
             asm wai;
             cursorX += 8;
@@ -269,12 +253,12 @@ void print(char* str) {
 
 void draw_field(char* field, char x, char y) {
     char r, c, i = 0;
-    vram[GX] = 0x80;
+    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
-    vram[WIDTH] = 4;
-    vram[HEIGHT] = 4;
-    for(r = 0; r < FIELD_H*4; r+=4) {
-        for(c = 0; c < FIELD_W*4; c+=4) {
+    vram[WIDTH] = GRID_SPACING;
+    vram[HEIGHT] = GRID_SPACING;
+    for(r = 0; r < FIELD_H*GRID_SPACING; r+=GRID_SPACING) {
+        for(c = 0; c < FIELD_W*GRID_SPACING; c+=GRID_SPACING) {
             vram[VX] = x + c;
             vram[VY] = y + r;
             vram[COLOR] = ~field[i++];
@@ -285,14 +269,14 @@ void draw_field(char* field, char x, char y) {
 
 void draw_piece(PiecePos* pos, char* piece, char offsetX, char offsetY) {
     char r, c, i = 0;
-    vram[GX] = 0x80;
+    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
-    vram[WIDTH] = 4;
-    vram[HEIGHT] = 4;
-    for(r = 0; r < 5*4; r+=4) {
-        for(c = 0; c < 5*4; c+=4) {
-            vram[VX] = 4*pos->x + c + offsetX - 8;
-            vram[VY] = 4*pos->y + r + offsetY - 8;
+    vram[WIDTH] = GRID_SPACING;
+    vram[HEIGHT] = GRID_SPACING;
+    for(r = 0; r < PIECEBUF_WIDTH*GRID_SPACING; r+=GRID_SPACING) {
+        for(c = 0; c < PIECEBUF_WIDTH*GRID_SPACING; c+=GRID_SPACING) {
+            vram[VX] = GRID_SPACING*pos->x + c + offsetX - 2*GRID_SPACING;
+            vram[VY] = GRID_SPACING*pos->y + r + offsetY - 2*GRID_SPACING;
             vram[COLOR] = ~piece[i++];
             vram[START] = 1;
         }
@@ -302,12 +286,12 @@ void draw_piece(PiecePos* pos, char* piece, char offsetX, char offsetY) {
 void init_piece(char type, PiecePos* pos, char* dest) {
     char r, c, i;
     i = tetro_index[type];
-    pos->x = 4;
-    pos->y = 1;
+    pos->x = SPAWN_COL;
+    pos->y = SPAWN_ROW;
     pos->t = type;
     pos->rot = 0;
-    for(r = 0; r < 5; r++) {
-        for(c = 0; c < 5; c++) {
+    for(r = 0; r < PIECEBUF_WIDTH; r++) {
+        for(c = 0; c < PIECEBUF_WIDTH; c++) {
             *dest = tetrominoes[i];
             dest++;
             i++;
@@ -317,10 +301,10 @@ void init_piece(char type, PiecePos* pos, char* dest) {
 
 void place_at(PiecePos* pos, char* pieceBuf, char* field) {
     char r, c, i = 0, j;
-    j = (pos->y * 10) + pos->x;
-    j -= 22;
-    for(r = 0; r < 5; r++) {
-        for(c = 0; c < 5; c++) {
+    j = (pos->y * FIELD_W) + pos->x;
+    j -= (FIELD_W*2 + 2);
+    for(r = 0; r < PIECEBUF_WIDTH; r++) {
+        for(c = 0; c < PIECEBUF_WIDTH; c++) {
             if(pieceBuf[i]) {
                 field[j] = pieceBuf[i];
             }
@@ -333,10 +317,10 @@ void place_at(PiecePos* pos, char* pieceBuf, char* field) {
 
 int test_at(PiecePos* pos, char* pieceBuf, char* field) {
     char r, c, i = 0, j;
-    j = (pos->y * 10) + pos->x;
-    j -= 22;
-    for(r = 0; r < 5; r++) {
-        for(c = 0; c < 5; c++) {
+    j = (pos->y * FIELD_W) + pos->x;
+    j -= (FIELD_W*2) + 2;
+    for(r = 0; r < PIECEBUF_WIDTH; r++) {
+        for(c = 0; c < PIECEBUF_WIDTH; c++) {
             if(pieceBuf[i]) {
                 if((pos->x + c - 2) >= FIELD_W) {
                     return 0;
@@ -351,14 +335,14 @@ int test_at(PiecePos* pos, char* pieceBuf, char* field) {
             i++;
             j++;
         }
-        j += 5;
+        j += FIELD_W - PIECEBUF_WIDTH;
     }
     return 1;
 }
 
 void copyPiece(char* src, char* dest) {
     char r = 0;
-    for(r = 0; r < 25; r++) {
+    for(r = 0; r < PIECEBUF_SIZE; r++) {
         *dest = *src;
         dest++; src++;
     }
@@ -369,7 +353,7 @@ void rotateRight(char* pieceBuf) {
 
     copyPiece(pieceBuf, tmpPieceBuf);
 
-    for(i=0;i<25;i++) {
+    for(i=0;i<PIECEBUF_SIZE;i++) {
         *pieceBuf = tmpPieceBuf[rotation_matrix[i]];
         pieceBuf++;
     }
@@ -380,7 +364,7 @@ void rotateLeft(char* pieceBuf) {
 
     copyPiece(pieceBuf, tmpPieceBuf);
 
-    for(i=0;i<25;i++) {
+    for(i=0;i<PIECEBUF_SIZE;i++) {
         pieceBuf[rotation_matrix[i]] = tmpPieceBuf[i];
     }
 }
@@ -398,14 +382,14 @@ void tryRotate(PiecePos* pos, char* pieceBuf, char* field, char direction) {
         rotateLeft(pieceBuf);
     }
     if(pos->t == TET_I) {
-        kicksrc = kicks_I + (5 * pos->rot);
-        kickdst = kicks_I + (5 * newRot);
+        kicksrc = kicks_I + (NUM_KICKTESTS * pos->rot);
+        kickdst = kicks_I + (NUM_KICKTESTS * newRot);
     } else {
-        kicksrc = kicks_main + (5 * pos->rot);
-        kickdst = kicks_main + (5 * newRot);
+        kicksrc = kicks_main + (NUM_KICKTESTS * pos->rot);
+        kickdst = kicks_main + (NUM_KICKTESTS * newRot);
     }
 
-    for(i = 0; i < 5; i ++) {
+    for(i = 0; i < NUM_KICKTESTS; i ++) {
         pos->x += k2o[(kicksrc[i] >> 4) & 15];
         pos->y -= k2o[kicksrc[i] & 15];
         pos->x -= k2o[(kickdst[i] >> 4) & 15];
@@ -428,7 +412,7 @@ void tryRotate(PiecePos* pos, char* pieceBuf, char* field, char direction) {
 
 int checkLineClears(char* playField) {
     char r, c, i = (FIELD_W*FIELD_H) - 1, j, clearCount = 0, blocks = 0;
-    for(r = FIELD_H-1; r >= 10; r--) {
+    for(r = FIELD_H-1; r >= 1; r--) {
         blocks = 0;
         for(c = 0; c < FIELD_W; c++) {
             blocks += !!playField[i--];
@@ -438,7 +422,7 @@ int checkLineClears(char* playField) {
             r++;
             i+=FIELD_W;
             for(j = i; j >= FIELD_W; j--) {
-                playField[j] = playField[j-10];
+                playField[j] = playField[j-FIELD_W];
             }
         }
     }
@@ -449,8 +433,12 @@ void main() {
     char oldX, oldY;
     unsigned char fallTimer = 0, fallRate = 8;
     int score = 0;
-    asm sei;
+    asm sei; /* Disable IRQ vector */
     
+    /* 
+     * Use zlib6502 to extract compressed sprite sheet.
+     * Library was imported as precompiled binary so it doesn't have a function defined.
+     */
     flagsMirror = DMA_NMI | DMA_IRQ;
     *dma_flags = flagsMirror;
     asm {
@@ -471,15 +459,7 @@ void main() {
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
 
-    cursorX = 16;
-    cursorY = 0;
-    print("tetris");
-
-    srand(0xABCD);
-    init_piece(2, &currentPos, currentPiece);
-
-    currentPos.x = 4;
-    currentPos.y = 1;
+    init_piece(rnd(), &currentPos, currentPiece);
 
     while(1){
         updateInputs();

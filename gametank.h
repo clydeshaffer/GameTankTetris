@@ -9,6 +9,9 @@
 #define vram_COLOR ((volatile char *) 0x4007)
 #define vram_START ((volatile char *) 0x4006)
 
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 128
+
 #define DMA_ENABLE 1
 #define DMA_PAGE_OUT 2
 #define DMA_NMI 4
@@ -26,6 +29,8 @@
 #define HEIGHT 5
 #define START 6
 #define COLOR 7
+
+#define DMA_GX_SOLIDCOLOR_FLAG 0x80
 
 #define gamepad_1 ((volatile char *) 0x2008)
 #define gamepad_2 ((volatile char *) 0x2009)
