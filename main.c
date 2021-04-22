@@ -18,6 +18,7 @@
 #define PIECEBUF_WIDTH 5
 #define PIECEBUF_SIZE 25
 #define NUM_KICKTESTS 5
+#define LOCK_FRAMES 4
 
 #define TET_I 0
 #define TET_J 1
@@ -29,7 +30,7 @@
 #define TET_COUNT 7
 
 typedef struct {
-    char x, y, rot, t;
+    char x, y, rot, t, lock;
 } PiecePos;
 
 #define PLAYER_DEAD 1
@@ -220,11 +221,34 @@ void printnum(int num) {
     if(num == 0) {
         vram[GX] = 0;
         vram[START] = 1;
-        /*asm wai; DMA will likely finish first*/
+        asm {
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+            }
     } else {
         while(num != 0) {
             vram[GX] = (num % 10) << 3;
             vram[START] = 1;
+            asm {
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+            }
             cursorX -= 8;
             num = num / 10;
             vram[VX] = cursorX;
@@ -259,7 +283,18 @@ void print(char* str) {
             vram[VX] = cursorX;
             vram[VY] = cursorY;
             vram[START] = 1;
-            asm wai;
+            asm {
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+                nop
+            }
             cursorX += 8;
         }
         str++;
@@ -282,10 +317,20 @@ void draw_field(char* field, char x, char y) {
     vram[HEIGHT] = GRID_SPACING;
     for(r = 0; r < FIELD_H*GRID_SPACING; r+=GRID_SPACING) {
         for(c = 0; c < FIELD_W*GRID_SPACING; c+=GRID_SPACING) {
-            vram[VX] = x + c;
-            vram[VY] = y + r;
-            vram[COLOR] = ~field[i++];
-            vram[START] = 1;
+            if(field[i]) {
+                vram[VX] = x + c;
+                vram[VY] = y + r;
+                vram[COLOR] = ~field[i];
+                vram[START] = 1;
+                asm {
+                    nop
+                    nop
+                    nop
+                    nop
+                    nop
+                }
+            }
+            i++;
         }
     }
 }
@@ -298,10 +343,20 @@ void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY) {
     vram[HEIGHT] = GRID_SPACING;
     for(r = 0; r < PIECEBUF_WIDTH*GRID_SPACING; r+=GRID_SPACING) {
         for(c = 0; c < PIECEBUF_WIDTH*GRID_SPACING; c+=GRID_SPACING) {
-            vram[VX] = GRID_SPACING*pos->x + c + offsetX - 2*GRID_SPACING;
-            vram[VY] = GRID_SPACING*pos->y + r + offsetY - 2*GRID_SPACING;
-            vram[COLOR] = ~piece[i++];
-            vram[START] = 1;
+            if(!!piece[i]) {
+                vram[VX] = GRID_SPACING*pos->x + c + offsetX - 2*GRID_SPACING;
+                vram[VY] = GRID_SPACING*pos->y + r + offsetY - 2*GRID_SPACING;
+                vram[COLOR] = ~piece[i];
+                vram[START] = 1;
+                asm {
+                    nop
+                    nop
+                    nop
+                    nop
+                    nop
+                }
+            }
+            i++;
         }
     }
 }
@@ -315,6 +370,7 @@ void init_piece(char type, PiecePos* pos, char* dest) {
     pos->y = SPAWN_ROW;
     pos->t = type;
     pos->rot = 0;
+    pos->lock = 0;
     for(r = 0; r < PIECEBUF_WIDTH; r++) {
         for(c = 0; c < PIECEBUF_WIDTH; c++) {
             *dest = tetrominoes[i];
@@ -509,7 +565,7 @@ void addGarbage(char* playField, char amount) {
 
 void initPlayerState(PlayerState* player) {
     init_piece(rnd(), &(player->currentPos), player->currentPiece);
-    player->fallRate = 8;
+    player->fallRate = 10;
     player->fallTimer = 0;
     player->score = 0;
     player->heldPiece.rot = 0;
@@ -539,6 +595,7 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             player->fallTimer = 255 - player->fallRate;
             player->flags |= PLAYER_DIDHOLD;
         } else if(inputs & INPUT_MASK_UP & ~last_inputs) {
+            player->currentPos.lock = LOCK_FRAMES+1;
             while(test_at(&(player->currentPos), player->currentPiece, player->playField)) {
                 oldY = player->currentPos.y;
                 player->currentPos.y++;
@@ -547,8 +604,6 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             tryRotate(&(player->currentPos), player->currentPiece, player->playField, -1);
         } else if(inputs & INPUT_MASK_B & ~last_inputs) {
             tryRotate(&(player->currentPos),player-> currentPiece, player->playField, 1);
-        } else if(inputs & INPUT_MASK_DOWN) {
-            player->currentPos.y++;
         } else {
             if(inputs & INPUT_MASK_LEFT) {
                 player->currentPos.x--;
@@ -556,62 +611,71 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             if(inputs & INPUT_MASK_RIGHT) {
                 player->currentPos.x++;
             }
-        }
+            if(inputs & INPUT_MASK_DOWN) {
+            player->currentPos.y++;
+            }
+        } 
 
         if(0 == test_at(&(player->currentPos), player->currentPiece, player->playField)){
             if(player->currentPos.x == oldX && player->currentPos.y == oldY) {
                 player->flags |= PLAYER_DEAD;
             } else if(player->currentPos.y > oldY) {
-                player->currentPos.y = oldY;
-
-                tSpinType = 0;
-                if(player->currentPos.t == TET_T) {
-                    tSpinType = checkTSpin(player->playField, &(player->currentPos));
-                }
-
-                place_at(&(player->currentPos), player->currentPiece, player->playField);
-                tmp = checkLineClears(player->playField);
-
-                player->score += tmp;
-
-                garbageOut = garbageTable[tmp + (4 * (tSpinType == T_SPIN_FULL))];
-
-                if(tmp != 0) {
-                    if((tmp == 4) || tSpinType == T_SPIN_FULL) {
-                        if(player->flags & PLAYER_BACK_TO_BACK) {
-                            garbageOut++;
-                        } else {
-                            player->flags |= PLAYER_BACK_TO_BACK;
+                player->currentPos.x = oldX;
+                if(0 == test_at(&(player->currentPos), player->currentPiece, player->playField)){
+                    player->currentPos.y = oldY;
+                    if(player->currentPos.lock > LOCK_FRAMES) {
+                        tSpinType = 0;
+                        if(player->currentPos.t == TET_T) {
+                            tSpinType = checkTSpin(player->playField, &(player->currentPos));
                         }
-                    } else {
-                        player->flags &= ~PLAYER_BACK_TO_BACK;
-                    }
-                    if(player->combo > 9) {
-                        garbageOut += comboGarbage[9];
-                    } else {
-                        garbageOut += comboGarbage[player->combo];
-                    }
-                    player->combo++;
-                } else {
-                    player->combo = 0;
-                }
 
-                if(player->pendingGarbage > garbageOut) {
-                    player->pendingGarbage -= garbageOut;
-                    garbageOut = 0;
-                } else {
-                    garbageOut -= player->pendingGarbage;
-                    player->pendingGarbage = 0;
-                }
-                
-                if((tmp == 0) && (player->pendingGarbage != 0)) {
-                    addGarbage(player->playField, player->pendingGarbage);
-                    player->pendingGarbage = 0;
-                }
+                        place_at(&(player->currentPos), player->currentPiece, player->playField);
+                        tmp = checkLineClears(player->playField);
 
-                init_piece(rnd(),  &(player->currentPos), player->currentPiece);
-                player->fallTimer = 255 - player->fallRate;
-                player->flags &= ~PLAYER_DIDHOLD;
+                        player->score += tmp;
+
+                        garbageOut = garbageTable[tmp + (4 * (tSpinType == T_SPIN_FULL))];
+
+                        if(tmp != 0) {
+                            if((tmp == 4) || tSpinType == T_SPIN_FULL) {
+                                if(player->flags & PLAYER_BACK_TO_BACK) {
+                                    garbageOut++;
+                                } else {
+                                    player->flags |= PLAYER_BACK_TO_BACK;
+                                }
+                            } else {
+                                player->flags &= ~PLAYER_BACK_TO_BACK;
+                            }
+                            if(player->combo > 9) {
+                                garbageOut += comboGarbage[9];
+                            } else {
+                                garbageOut += comboGarbage[player->combo];
+                            }
+                            player->combo++;
+                        } else {
+                            player->combo = 0;
+                        }
+
+                        if(player->pendingGarbage > garbageOut) {
+                            player->pendingGarbage -= garbageOut;
+                            garbageOut = 0;
+                        } else {
+                            garbageOut -= player->pendingGarbage;
+                            player->pendingGarbage = 0;
+                        }
+                        
+                        if((tmp == 0) && (player->pendingGarbage != 0)) {
+                            addGarbage(player->playField, player->pendingGarbage);
+                            player->pendingGarbage = 0;
+                        }
+
+                        init_piece(rnd(),  &(player->currentPos), player->currentPiece);
+                        player->fallTimer = 255 - player->fallRate;
+                        player->flags &= ~PLAYER_DIDHOLD;
+                    } else {
+                        player->currentPos.lock++;
+                    }
+                }
             } else {
                 player->currentPos.y = oldY;
                 player->currentPos.x = oldX;   

@@ -49,7 +49,19 @@ START:
 	lda	#>C_STACK
 	sta	SP+1
 
-	lda #$0
+	sei
+	stz $2007
+
+	ldx #0
+viaWakeup:
+	inx
+	bne viaWakeup
+
+	LDA #%00000111
+	STA VIA+DDRA
+    LDA #$FF
+    STA VIA+ORA
+	lda #$7E
 	jsr ShiftHighBits
 
 	****************************************************************
