@@ -18,7 +18,7 @@
 #define PIECEBUF_WIDTH 5
 #define PIECEBUF_SIZE 25
 #define NUM_KICKTESTS 5
-#define LOCK_FRAMES 4
+#define LOCK_FRAMES 15
 
 #define TET_I 0
 #define TET_J 1
@@ -173,11 +173,13 @@ void updateInputs(){
 
     last_inputs = inputs;
     inputs = ~((((int) inputsB) << 8) | inputsA);
+    inputs &= INPUT_MASK_ALL_KEYS;
 
     inputsA = *gamepad_2;
     inputsB = *gamepad_2;
     last_inputs2 = inputs2;
     inputs2 = ~((((int) inputsB) << 8) | inputsA);
+    inputs2 &= INPUT_MASK_ALL_KEYS;
 }
 
 void Sleep(int frames) {
@@ -614,15 +616,25 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             if(inputs & INPUT_MASK_DOWN) {
             player->currentPos.y++;
             }
-        } 
+        }
 
         if(0 == test_at(&(player->currentPos), player->currentPiece, player->playField)){
             if(player->currentPos.x == oldX && player->currentPos.y == oldY) {
                 player->flags |= PLAYER_DEAD;
             } else if(player->currentPos.y > oldY) {
+                tmp = player->currentPos.x;
                 player->currentPos.x = oldX;
                 if(0 == test_at(&(player->currentPos), player->currentPiece, player->playField)){
                     player->currentPos.y = oldY;
+                    player->currentPos.x = tmp;
+                    if(tmp != oldX) {
+                        if(0 == test_at(&(player->currentPos), player->currentPiece, player->playField)) {
+                            player->currentPos.x = oldX;
+                        } else {
+                            player->currentPos.lock = 0;
+                        }
+                    }
+
                     if(player->currentPos.lock > LOCK_FRAMES) {
                         tSpinType = 0;
                         if(player->currentPos.t == TET_T) {
@@ -673,7 +685,11 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
                         player->fallTimer = 255 - player->fallRate;
                         player->flags &= ~PLAYER_DIDHOLD;
                     } else {
-                        player->currentPos.lock++;
+                        if((inputs & ~INPUT_MASK_DOWN) == 0) {
+                            player->currentPos.lock+=10;
+                        } else {
+                            player->currentPos.lock++;
+                        }
                     }
                 }
             } else {
