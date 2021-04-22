@@ -2,6 +2,7 @@
 #define audio_nmi ((volatile char *) 0x2001)
 #define audio_rate ((volatile char *) 0x2006)
 #define dma_flags ((volatile char *) 0x2007)
+#define via ((volatile char*) 0x2800)
 #define aram ((volatile char *) 0x3000)
 #define vram ((volatile char *) 0x4000)
 #define vram_VX ((volatile char *) 0x4000)
@@ -47,3 +48,13 @@
 #define INPUT_MASK_B		4096
 #define INPUT_MASK_C		8192
 #define INPUT_MASK_START	32
+
+#define ORB 0
+#define ORA 1
+#define DDRB 2
+#define DDRA 3
+#define T1C 5
+#define ACR 11
+#define PCR 12
+#define IFR 13
+#define IER 14

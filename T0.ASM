@@ -19,8 +19,18 @@
 
 MCH_STACK	EQU	$FF 
 C_STACK		EQU	$1EFF
+VIA EQU $2800
+ORB EQU 0
+ORA EQU 1
+DDRB EQU 2
+DDRA EQU 3
+T1C EQU 5
+ACR EQU $B
+PCR EQU $C
+IFR EQU $D
+IER EQU $E
 
-STARTUP	SECTION	OFFSET $FF00
+STARTUP	SECTION	OFFSET $FE00
 
 	xref  _BEG_DATA
 	xref  _END_DATA
@@ -38,6 +48,9 @@ START:
 	sta	SP
 	lda	#>C_STACK
 	sta	SP+1
+
+	lda #$0
+	jsr ShiftHighBits
 
 	****************************************************************
 	*                                                              *
@@ -131,6 +144,80 @@ done:
 	xdef	__exit
 __exit:
 	brk
+
+ShiftHighBits:
+	STA R0
+	LDA #$FF
+	STA VIA+ORA
+
+	LDA R0
+	ROR
+	ROR
+	ROR
+	ROR
+	ROR
+	AND #2
+	ORA #%00000100
+	STA VIA+ORA
+	ORA #1
+	STA VIA+ORA
+
+	LDA R0
+	ROR
+	ROR
+	ROR
+	ROR
+	AND #2
+	ORA #%00000100
+	STA VIA+ORA
+	ORA #1
+	STA VIA+ORA
+
+	LDA R0
+	ROR
+	ROR
+	ROR
+	AND #2
+	ORA #%00000100
+	STA VIA+ORA
+	ORA #1
+	STA VIA+ORA
+
+	LDA R0
+	ROR
+	ROR
+	AND #2
+	ORA #%00000100
+	STA VIA+ORA
+	ORA #1
+	STA VIA+ORA
+	
+	LDA R0
+	ROR
+	AND #2
+	ORA #%00000100
+	STA VIA+ORA
+	ORA #1
+	STA VIA+ORA
+
+	LDA R0
+	AND #2
+	ORA #%00000100
+	STA VIA+ORA
+	ORA #1
+	STA VIA+ORA
+
+	LDA R0
+	ROL
+	AND #2
+	STA VIA+ORA
+	ORA #1
+	STA VIA+ORA
+
+	ORA #4
+	STA VIA+ORA
+
+	RTS
 
 	xdef	IRQ
 	xref	_IRQHandler
