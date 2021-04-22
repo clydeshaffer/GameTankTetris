@@ -575,17 +575,17 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
                 player->score += tmp;
 
                 garbageOut = garbageTable[tmp + (4 * (tSpinType == T_SPIN_FULL))];
-                if((tmp == 4) || tSpinType == T_SPIN_FULL) {
-                    if(player->flags & PLAYER_BACK_TO_BACK) {
-                        garbageOut++;
-                    } else {
-                        player->flags |= PLAYER_BACK_TO_BACK;
-                    }
-                } else {
-                    player->flags &= ~PLAYER_BACK_TO_BACK;
-                }
 
                 if(tmp != 0) {
+                    if((tmp == 4) || tSpinType == T_SPIN_FULL) {
+                        if(player->flags & PLAYER_BACK_TO_BACK) {
+                            garbageOut++;
+                        } else {
+                            player->flags |= PLAYER_BACK_TO_BACK;
+                        }
+                    } else {
+                        player->flags &= ~PLAYER_BACK_TO_BACK;
+                    }
                     if(player->combo > 9) {
                         garbageOut += comboGarbage[9];
                     } else {
