@@ -714,7 +714,7 @@ void main() {
     initPlayerState(&(players[0]));
     players[0].field_offset_x = 8;
     players[0].field_offset_y = 16;
-    players[0].heldPiece.x = 14;
+    players[0].heldPiece.x = 13;
     players[0].heldPiece.y = 5;
 
     initPlayerState(&(players[1]));
@@ -730,6 +730,7 @@ void main() {
         players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
 
         CLS(3);
+        FillRect(SCREEN_WIDTH-1, 0, 1, SCREEN_HEIGHT-1, 3);
 
         drawPlayerState(&(players[0]));
         drawPlayerState(&(players[1]));
