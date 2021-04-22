@@ -34,6 +34,7 @@ typedef struct {
 
 #define PLAYER_DEAD 1
 #define PLAYER_DIDHOLD 2
+#define PLAYER_BACK_TO_BACK 4
 
 typedef struct {
     char field_offset_x, field_offset_y;
@@ -44,6 +45,8 @@ typedef struct {
     char flags;
     unsigned char fallTimer, fallRate;
     int score;
+    char pendingGarbage;
+    char combo;
 } PlayerState;
 
 PlayerState players[2];
@@ -432,7 +435,39 @@ void tryRotate(PiecePos* pos, char* pieceBuf, char* field, char direction) {
     }
 }
 
-int checkLineClears(char* playField) {
+#define T_SPIN_NONE 0
+#define T_SPIN_MINI 1
+#define T_SPIN_FULL 2
+const int cornerOffsets[5] = {
+    0 - FIELD_W - 1,
+    0 - FIELD_W + 1,
+    0 + FIELD_W + 1,
+    0 + FIELD_W - 1,
+    0 - FIELD_W - 1
+};
+
+char checkTSpin(char* playField, PiecePos* pos) {
+    char center = (pos->y * FIELD_W) + pos->x, count = 0;
+    count += !!playField[center - FIELD_W - 1] || (pos->x == 0);
+    count += !!playField[center - FIELD_W + 1] || (pos->x == FIELD_W-1);
+    count += !!playField[center + FIELD_W - 1] || (pos->x == 0) || (pos->y == FIELD_H-1);
+    count += !!playField[center + FIELD_W + 1] || (pos->x == FIELD_W-1) || (pos->y == FIELD_H-1);
+    if(count > 2) {
+        count = 0;
+        count += !!playField[center + cornerOffsets[pos->rot]];
+        count += !!playField[center + cornerOffsets[pos->rot+1]];
+
+        if(count == 2) {
+            return T_SPIN_FULL;
+        } else {
+            return T_SPIN_MINI;
+        }
+    } else {
+        return T_SPIN_NONE;
+    }
+}
+
+char checkLineClears(char* playField) {
     char r, c, i = (FIELD_W*FIELD_H) - 1, j, clearCount = 0, blocks = 0;
     for(r = FIELD_H-1; r >= 1; r--) {
         blocks = 0;
@@ -451,6 +486,27 @@ int checkLineClears(char* playField) {
     return clearCount;
 }
 
+char garbageTable[10] = {0, 0, 1, 2, 4, 0, 2, 4, 6, 0};
+char comboGarbage[10] = {0, 1, 1, 2, 2, 3, 3, 4, 4, 5};
+
+void addGarbage(char* playField, char amount) {
+    char i, len, nlen;
+    if(amount > FIELD_H) {
+        amount = FIELD_H;
+    }
+    len = FIELD_W * amount;
+    nlen = FIELD_W * (FIELD_H - amount);
+    for(i = 0; i < nlen; i ++) {
+        playField[i] = playField[i + len];
+    }
+    for(i = nlen; i < FIELD_H * FIELD_W; i++) {
+        playField[i] = 5;
+    }
+    for(i = nlen; i < FIELD_H * FIELD_W; i+=FIELD_W) {
+        playField[i + ((rnd() & 127) % FIELD_W)] = 0;
+    }
+}
+
 void initPlayerState(PlayerState* player) {
     init_piece(rnd(), &(player->currentPos), player->currentPiece);
     player->fallRate = 8;
@@ -459,12 +515,14 @@ void initPlayerState(PlayerState* player) {
     player->heldPiece.rot = 0;
     player->heldPiece.t = TET_COUNT;
     player->flags = 0;
+    player->pendingGarbage = 0;
+    player->combo = 0;
 }
 
-void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
-    char oldX, oldY, tmp;
+char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
+    char oldX, oldY, tmp, tSpinType, garbageOut = 0;
     if(player->flags & PLAYER_DEAD) {
-        return;
+        return 0;
     }
     oldX = player->currentPos.x;
         oldY = player->currentPos.y;
@@ -506,8 +564,50 @@ void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             } else if(player->currentPos.y > oldY) {
                 player->currentPos.y = oldY;
 
+                tSpinType = 0;
+                if(player->currentPos.t == TET_T) {
+                    tSpinType = checkTSpin(player->playField, &(player->currentPos));
+                }
+
                 place_at(&(player->currentPos), player->currentPiece, player->playField);
-                player->score += checkLineClears(player->playField);
+                tmp = checkLineClears(player->playField);
+
+                player->score += tmp;
+
+                garbageOut = garbageTable[tmp + (4 * (tSpinType == T_SPIN_FULL))];
+                if((tmp == 4) || tSpinType == T_SPIN_FULL) {
+                    if(player->flags & PLAYER_BACK_TO_BACK) {
+                        garbageOut++;
+                    } else {
+                        player->flags |= PLAYER_BACK_TO_BACK;
+                    }
+                } else {
+                    player->flags &= ~PLAYER_BACK_TO_BACK;
+                }
+
+                if(tmp != 0) {
+                    if(player->combo > 9) {
+                        garbageOut += comboGarbage[9];
+                    } else {
+                        garbageOut += comboGarbage[player->combo];
+                    }
+                    player->combo++;
+                } else {
+                    player->combo = 0;
+                }
+
+                if(player->pendingGarbage > garbageOut) {
+                    player->pendingGarbage -= garbageOut;
+                    garbageOut = 0;
+                } else {
+                    garbageOut -= player->pendingGarbage;
+                    player->pendingGarbage = 0;
+                }
+                
+                if((tmp == 0) && (player->pendingGarbage != 0)) {
+                    addGarbage(player->playField, player->pendingGarbage);
+                    player->pendingGarbage = 0;
+                }
 
                 init_piece(rnd(),  &(player->currentPos), player->currentPiece);
                 player->fallTimer = 255 - player->fallRate;
@@ -518,6 +618,7 @@ void updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             }
         }
         player->fallTimer+=player->fallRate;
+        return garbageOut;
 }
 
 void drawPlayerState(PlayerState* player) {
@@ -542,11 +643,19 @@ void drawPlayerState(PlayerState* player) {
             player->field_offset_x, player->field_offset_y);
     }
 
-    FillRect(player->field_offset_x, player->field_offset_y, 4 * FIELD_W, 6, 3);
+    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, 6, 3);
 
     cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W);
     cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H);
     printnum(player->score);
+
+    FillRect(
+        player->field_offset_x + GRID_SPACING * FIELD_W,
+        player->field_offset_y + GRID_SPACING * FIELD_H - GRID_SPACING * player->pendingGarbage,
+        1,
+        player->pendingGarbage * GRID_SPACING,
+        6
+    );
 
     if(player->flags & PLAYER_DEAD) {
         cursorX = player->field_offset_x + (GRID_SPACING * (FIELD_W/2 - 5));
@@ -617,8 +726,8 @@ void main() {
     while(1){
         updateInputs();
 
-        updatePlayerState(&(players[0]), inputs, last_inputs);
-        updatePlayerState(&(players[1]), inputs2, last_inputs2);
+        players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs, last_inputs);
+        players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
 
         CLS(3);
 
