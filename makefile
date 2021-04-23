@@ -1,10 +1,44 @@
-build:
-	wine WDC02AS T0.ASM
-	wine WDC02AS ASSETS.ASM
-	wine WDC02CC -SP -SM gametank.c
-	wine WDC02CC -SP -SM dynawave.c
-	wine WDC02CC -SP -SM drawing_funcs.c
-	wine WDC02CC -SP -SM tetris.c
-	wine WDC02CC -SP -SM main.c
-	wine WDCLN -HB -C8000 -D500, gametank.obj dynawave.obj drawing_funcs.obj tetris.obj main.obj assets.obj T0.obj -LC -T
-	dd bs=32768 skip=1 if=main.bin of=bin/tetris.gtr
+ifeq ($(OS), Windows_NT)
+	CC = WDC02CC
+	AS = WDC02AS
+	LN = WDCLN
+else
+	CC = wine WDC02CC
+	AS = wine WDC02AS
+	LN = wine WDCLN
+endif
+
+SDIR = src
+ODIR = build
+
+_COBJS = gametank.obj dynawave.obj drawing_funcs.obj tetris.obj main.obj
+COBJS = $(patsubst %,$(ODIR)/%,$(_COBJS))
+_AOBJS = assets.obj boot.obj
+AOBJS = $(patsubst %,$(ODIR)/%,$(_AOBJS))
+
+CFLAGS = -SP -SM -I src
+AFLAGS = -I assets -I lib
+LFLAGS = -HB -C8000 -D500,
+LLIBS = -LC
+
+ASSETDEPS = assets/gamesprites.gtg.deflate lib/dynawave.acp.deflate lib/inflate_e000_0200.obx
+
+$(ODIR)/%.obj: src/%.c src/%.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(ODIR)/%.obj: src/%.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(ODIR)/%.obj: src/%.asm
+	$(AS) $(AFLAGS) -o $@ $<
+
+bin/tetris.gtr: $(ODIR)/tetris.bin
+	dd bs=32768 skip=1 if=$< of=$@
+
+$(ODIR)/tetris.bin: $(COBJS) $(AOBJS)
+	$(LN) $(LFLAGS) $^ -o $@ $(LLIBS)
+
+.PHONY: clean
+
+clean:
+	rm -rf $(ODIR)/*
