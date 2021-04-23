@@ -1,3 +1,10 @@
+/*
+ * GameTank-specific defines
+ */
+
+#ifndef GAMETANK_H
+#define GAMETANK_H
+
 #define audio_reset ((volatile char *) 0x2000)
 #define audio_nmi ((volatile char *) 0x2001)
 #define audio_rate ((volatile char *) 0x2006)
@@ -59,3 +66,7 @@
 #define PCR 12
 #define IFR 13
 #define IER 14
+
+extern char frameflag, frameflip, flagsMirror;
+
+#endif
