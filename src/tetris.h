@@ -45,6 +45,7 @@ typedef struct {
 extern const unsigned char tetro_index[TET_COUNT];
 extern const unsigned char tetrominoes[PIECEBUF_SIZE*7];
 
+void initPlayerState(PlayerState* player);
 char updatePlayerState(PlayerState* player, int inputs, int last_inputs);
 
 #endif
