@@ -1,5 +1,6 @@
 #include "gametank.h"
 #include "dynawave.h"
+#include "music.h"
 #include "tetris.h"
 #include "drawing_funcs.h"
 
@@ -55,6 +56,8 @@ void main() {
     players[1].heldPiece.y = 15;
 
     while(1){
+        tick_music();
+
         updateInputs();
 
         players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs, last_inputs);

@@ -11,7 +11,7 @@ endif
 SDIR = src
 ODIR = build
 
-_COBJS = gametank.obj dynawave.obj drawing_funcs.obj tetris.obj main.obj
+_COBJS = gametank.obj dynawave.obj music.obj drawing_funcs.obj tetris.obj main.obj
 COBJS = $(patsubst %,$(ODIR)/%,$(_COBJS))
 _AOBJS = assets.obj boot.obj
 AOBJS = $(patsubst %,$(ODIR)/%,$(_AOBJS))
