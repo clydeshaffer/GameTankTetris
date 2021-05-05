@@ -175,6 +175,42 @@ int test_at(PiecePos* pos, char* pieceBuf, char* field) {
     return 1;
 }
 
+int hard_drop(PiecePos* pos, char* pieceBuf, char* field) {
+    char pc, pr, fc, fr;
+    char *pieceCursor;
+    char finalY = FIELD_H;
+    for(pc = 0; pc < PIECEBUF_WIDTH; pc++) {
+        pieceCursor = pieceBuf + PIECEBUF_WIDTH * (PIECEBUF_WIDTH-1) + pc;
+        fc = pc + pos->x - 2;
+        for(pr = PIECEBUF_WIDTH; pr > 0; pr--) {
+            if(*pieceCursor) {
+                break;
+            } else {
+                pieceCursor -= PIECEBUF_WIDTH;
+            }
+        }
+        if(pr > 0) {
+            fr = pr + pos->y - 3;
+            pieceCursor = field + (fr * FIELD_W) + fc;
+            for(; fr < FIELD_H; fr++) {
+                if(*pieceCursor) {
+                    break;
+                } else {
+                    pieceCursor += FIELD_W;
+                }
+            }
+            fr = fr - pr + 2;
+            if(fr < finalY) {
+                finalY = fr;
+            }
+        }
+    }
+
+    pos->lock = LOCK_FRAMES+1;
+    pos->y = finalY+1;
+    return pos->y-1;
+}
+
 void copyPiece(char* src, char* dest) {
     char r = 0;
     for(r = 0; r < PIECEBUF_SIZE; r++) {
@@ -301,16 +337,21 @@ char comboGarbage[10] = {0, 1, 1, 2, 2, 3, 3, 4, 4, 5};
 
 void addGarbage(char* playField, char amount) {
     char i, len, nlen;
+    char *fieldD = playField, *fieldS;
     if(amount > FIELD_H) {
         amount = FIELD_H;
     }
     len = FIELD_W * amount;
     nlen = FIELD_W * (FIELD_H - amount);
+    fieldS = &(playField[len]);
     for(i = 0; i < nlen; i ++) {
-        playField[i] = playField[i + len];
+        *fieldD = *fieldS;
+        fieldD++;
+        fieldS++;
     }
     for(i = nlen; i < FIELD_H * FIELD_W; i++) {
-        playField[i] = 5;
+        *fieldD = 5;
+        fieldD++;
     }
     for(i = nlen; i < FIELD_H * FIELD_W; i+=FIELD_W) {
         playField[i + ((rnd() & 127) % FIELD_W)] = 0;
@@ -349,11 +390,7 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             player->fallTimer = 255 - player->fallRate;
             player->flags |= PLAYER_DIDHOLD;
         } else if(inputs & INPUT_MASK_UP & ~last_inputs) {
-            player->currentPos.lock = LOCK_FRAMES+1;
-            while(test_at(&(player->currentPos), player->currentPiece, player->playField)) {
-                oldY = player->currentPos.y;
-                player->currentPos.y++;
-            }
+            oldY = hard_drop(&(player->currentPos), player->currentPiece, player->playField);
         } else if(inputs & INPUT_MASK_A & ~last_inputs) {
             tryRotate(&(player->currentPos), player->currentPiece, player->playField, -1);
         } else if(inputs & INPUT_MASK_B & ~last_inputs) {
