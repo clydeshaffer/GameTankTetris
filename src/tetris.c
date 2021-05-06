@@ -313,9 +313,9 @@ char checkTSpin(char* playField, PiecePos* pos) {
     }
 }
 
-char checkLineClears(char* playField) {
-    char r, c, i = (FIELD_W*FIELD_H) - 1, j, clearCount = 0, blocks = 0;
-    for(r = FIELD_H-1; r >= 1; r--) {
+char checkLineClears(char* playField, char topBound, char botBound) {
+    char r, c, i = (FIELD_W*(botBound+1)) - 1, j, clearCount = 0, blocks = 0;
+    for(r = botBound; r >= topBound; r--) {
         blocks = 0;
         for(c = 0; c < FIELD_W; c++) {
             blocks += !!playField[i--];
@@ -371,7 +371,7 @@ void initPlayerState(PlayerState* player) {
 }
 
 char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
-    char oldX, oldY, tmp, tSpinType, garbageOut = 0;
+    char oldX, oldY, tmp, tmp2, tSpinType, garbageOut = 0;
     if(player->flags & PLAYER_DEAD) {
         return 0;
     }
@@ -431,7 +431,19 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
                         }
 
                         place_at(&(player->currentPos), player->currentPiece, player->playField);
-                        tmp = checkLineClears(player->playField);
+                        tmp = player->currentPos.y;
+                        tmp2 = tmp;
+                        if(tmp < 3) {
+                            tmp = 1;
+                        } else {
+                            tmp -= 2;
+                        }
+                        if(tmp2 > FIELD_H-3) {
+                            tmp2 = FIELD_H-1;
+                        } else {
+                            tmp2 += 2;
+                        }
+                        tmp = checkLineClears(player->playField, tmp, tmp2);
 
                         player->score += tmp;
 
