@@ -42,6 +42,15 @@ void main() {
 
     load_spritesheet();
 
+    *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS;
+    FillRect(0, SCREEN_HEIGHT-1, SCREEN_WIDTH - 1, 1, 0);
+    *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | DMA_VRAM_PAGE | DMA_PAGE_OUT;
+    FillRect(0, SCREEN_HEIGHT-1, SCREEN_WIDTH - 1, 1, 0);
+    *dma_flags = DMA_NMI | DMA_CPU_TO_VRAM;
+    vram[SCREEN_HEIGHT*SCREEN_WIDTH-1] = 0;
+    *dma_flags = DMA_NMI | DMA_CPU_TO_VRAM | DMA_VRAM_PAGE;
+    vram[SCREEN_HEIGHT*SCREEN_WIDTH-1] = 0;
+
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
 
