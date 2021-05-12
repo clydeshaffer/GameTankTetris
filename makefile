@@ -16,8 +16,8 @@ COBJS = $(patsubst %,$(ODIR)/%,$(_COBJS))
 _AOBJS = assets.obj boot.obj
 AOBJS = $(patsubst %,$(ODIR)/%,$(_AOBJS))
 
-CFLAGS = -SP -SM -I src
-AFLAGS = -I assets -I lib
+CFLAGS = -SP -SM -I src -DUSING_02
+AFLAGS = -I assets -I lib -DUSING_02
 LFLAGS = -HB -C8000 -D500,
 LLIBS = -LC
 
