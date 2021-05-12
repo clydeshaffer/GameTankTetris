@@ -9,6 +9,7 @@ PlayerState players[2];
 int inputs = 0, last_inputs = 0;
 int inputs2 = 0, last_inputs2 = 0;
 
+#pragma optimize(off)
 void updateInputs(){
     char inputsA, inputsB;
     inputsA = *gamepad_2;
@@ -25,6 +26,7 @@ void updateInputs(){
     inputs2 = ~((((int) inputsB) << 8) | inputsA);
     inputs2 &= INPUT_MASK_ALL_KEYS;
 }
+#pragma optimize(on)
 
 void Sleep(int frames) {
     int i;
@@ -59,7 +61,6 @@ void main() {
         tick_music();
 
         updateInputs();
-
         players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs, last_inputs);
         players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
 

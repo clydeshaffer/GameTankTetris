@@ -1,28 +1,21 @@
 /*
  * GameTank-specific implementation of drawing functions
  */
+#include <zlib.h>
 #include "drawing_funcs.h"
 #include "gametank.h"
 
 char cursorX, cursorY;
 
+extern const unsigned char* GameSprites;
+extern void wait();
+extern void nop5();
+extern void nop10();
+
 void load_spritesheet() {
     flagsMirror = DMA_NMI | DMA_IRQ;
     *dma_flags = flagsMirror;
-    asm {
-        xref GameSprites
-        xref InflateParams
-        xref Inflate
-        LDA #<GameSprites
-        STA InflateParams
-        LDA #>GameSprites
-        STA InflateParams+1
-        LDA #$00
-        STA InflateParams+2
-        LDA #$40
-        STA InflateParams+3
-        JSR Inflate
-    };
+    inflatemem(vram, &GameSprites);
 }
 
 void CLS(char c) {
@@ -34,7 +27,7 @@ void CLS(char c) {
     vram[HEIGHT] = SCREEN_HEIGHT-1;
     vram[COLOR] = ~c;
     vram[START] = 1;
-    asm wai;
+    wait();
 }
 
 void FillRect(char x, char y, char w, char h, char c) {
@@ -46,7 +39,7 @@ void FillRect(char x, char y, char w, char h, char c) {
     vram[HEIGHT] = h;
     vram[COLOR] = ~c;
     vram[START] = 1;
-    asm wai;
+    wait();
 }
 
 void printnum(int num) {
@@ -58,34 +51,12 @@ void printnum(int num) {
     if(num == 0) {
         vram[GX] = 0;
         vram[START] = 1;
-        asm {
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-            }
+        nop10();
     } else {
         while(num != 0) {
             vram[GX] = (num % 10) << 3;
             vram[START] = 1;
-            asm {
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-            }
+            nop10();
             cursorX -= 8;
             num = num / 10;
             vram[VX] = cursorX;
@@ -120,18 +91,7 @@ void print(char* str) {
             vram[VX] = cursorX;
             vram[VY] = cursorY;
             vram[START] = 1;
-            asm {
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-            }
+            nop10();
             cursorX += 8;
         }
         str++;
@@ -162,13 +122,7 @@ void draw_field(char* field, char x, char y) {
                 vram[VY] = vy;
                 vram[COLOR] = f ^ 0xFF;
                 vram[START] = 1;
-                asm {
-                    nop
-                    nop
-                    nop
-                    nop
-                    nop
-                }
+                nop5();
             }
             vx+=GRID_SPACING;
             field++;
@@ -190,13 +144,7 @@ void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY) {
                 vram[VY] = GRID_SPACING*pos->y + r + offsetY - 2*GRID_SPACING;
                 vram[COLOR] = ~piece[i];
                 vram[START] = 1;
-                asm {
-                    nop
-                    nop
-                    nop
-                    nop
-                    nop
-                }
+                nop5();
             }
             i++;
         }

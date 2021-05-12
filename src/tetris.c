@@ -220,7 +220,7 @@ void copyPiece(char* src, char* dest) {
 }
 
 void rotateRight(char* pieceBuf) {
-    char r, c, i = 0;
+    char i = 0;
 
     copyPiece(pieceBuf, tmpPieceBuf);
 
@@ -231,7 +231,7 @@ void rotateRight(char* pieceBuf) {
 }
 
 void rotateLeft(char* pieceBuf) {
-    char r, c, i = 0;
+    char i = 0;
 
     copyPiece(pieceBuf, tmpPieceBuf);
 
