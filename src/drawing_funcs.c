@@ -147,17 +147,20 @@ void print(char* str) {
 }
 
 void draw_field(char* field, char x, char y) {
-    char r, c, i = 0;
+    char r, c, vx, vy, f;
     vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
     vram[WIDTH] = GRID_SPACING;
     vram[HEIGHT] = GRID_SPACING;
-    for(r = 0; r < FIELD_H*GRID_SPACING; r+=GRID_SPACING) {
-        for(c = 0; c < FIELD_W*GRID_SPACING; c+=GRID_SPACING) {
-            if(field[i]) {
-                vram[VX] = x + c;
-                vram[VY] = y + r;
-                vram[COLOR] = ~field[i];
+    vy = y;
+    for(r = 0; r < FIELD_H; r++) {
+        vx = x;
+        for(c = 0; c < FIELD_W; c++) {
+            f = *field;
+            if(f) {
+                vram[VX] = vx;
+                vram[VY] = vy;
+                vram[COLOR] = f ^ 0xFF;
                 vram[START] = 1;
                 asm {
                     nop
@@ -167,8 +170,10 @@ void draw_field(char* field, char x, char y) {
                     nop
                 }
             }
-            i++;
+            vx+=GRID_SPACING;
+            field++;
         }
+        vy+=GRID_SPACING;
     }
 }
 
