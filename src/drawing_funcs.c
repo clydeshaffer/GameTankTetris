@@ -51,12 +51,12 @@ void printnum(int num) {
     if(num == 0) {
         vram[GX] = 0;
         vram[START] = 1;
-        nop10();
+        wait();
     } else {
         while(num != 0) {
             vram[GX] = (num % 10) << 3;
             vram[START] = 1;
-            nop10();
+            wait();
             cursorX -= 8;
             num = num / 10;
             vram[VX] = cursorX;
@@ -91,7 +91,7 @@ void print(char* str) {
             vram[VX] = cursorX;
             vram[VY] = cursorY;
             vram[START] = 1;
-            nop10();
+            wait();
             cursorX += 8;
         }
         str++;
@@ -122,7 +122,7 @@ void draw_field(char* field, char x, char y) {
                 vram[VY] = vy;
                 vram[COLOR] = f ^ 0xFF;
                 vram[START] = 1;
-                nop5();
+                wait();
             }
             vx+=GRID_SPACING;
             field++;
@@ -144,7 +144,7 @@ void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY) {
                 vram[VY] = GRID_SPACING*pos->y + r + offsetY - 2*GRID_SPACING;
                 vram[COLOR] = ~piece[i];
                 vram[START] = 1;
-                nop5();
+                wait();
             }
             i++;
         }
@@ -179,13 +179,15 @@ void drawPlayerState(PlayerState* player) {
     cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H);
     printnum(player->score);
 
-    FillRect(
-        player->field_offset_x + GRID_SPACING * FIELD_W,
-        player->field_offset_y + GRID_SPACING * FIELD_H - GRID_SPACING * player->pendingGarbage,
-        1,
-        player->pendingGarbage * GRID_SPACING,
-        6
-    );
+    if(player->pendingGarbage != 0) {
+        FillRect(
+            player->field_offset_x + GRID_SPACING * FIELD_W,
+            player->field_offset_y + GRID_SPACING * FIELD_H - GRID_SPACING * player->pendingGarbage,
+            1,
+            player->pendingGarbage * GRID_SPACING,
+            6
+        );
+    }
 
     if(player->flags & PLAYER_DEAD) {
         cursorX = player->field_offset_x + (GRID_SPACING * (FIELD_W/2 - 5));
