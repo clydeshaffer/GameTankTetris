@@ -245,8 +245,8 @@ void drawPlayerState(PlayerState* player) {
     if(player->bag_anim > 0) {
         player->bag_anim--;
     }
-    FillRect(player->field_offset_x + (i * 8), player->field_offset_y, SPRITE_CHAR_W, PIECEBUF_WIDTH, BG_COLOR);
-    SpriteRect(player->field_offset_x + (i * 8), player->field_offset_y,SPRITE_CHAR_W, PIECEBUF_WIDTH, 106, 2);
+    FillRect(player->field_offset_x + (i * 8), player->field_offset_y, PIECEBUF_WIDTH, PIECEBUF_WIDTH, BG_COLOR);
+    SpriteRect(player->field_offset_x + (i * 8), player->field_offset_y,PIECEBUF_WIDTH, PIECEBUF_WIDTH, 106, 2);
 
 
     if(player->pendingGarbage != 0) {

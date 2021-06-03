@@ -61,13 +61,13 @@ void main() {
     CLB(0);
 
     initPlayerState(&(players[0]));
-    players[0].field_offset_x = 8;
+    players[0].field_offset_x = 16;
     players[0].field_offset_y = 24;
     players[0].heldPiece.x = 0;
     players[0].heldPiece.y = 0;
 
     initPlayerState(&(players[1]));
-    players[1].field_offset_x = 80;
+    players[1].field_offset_x = 72;
     players[1].field_offset_y = 24;
     players[1].heldPiece.x = 0;
     players[1].heldPiece.y = 0;
@@ -80,7 +80,6 @@ void main() {
         players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
 
         CLS(BG_COLOR);
-        FillRect(SCREEN_WIDTH-1, 7, 1, SCREEN_HEIGHT-15, 3);
 
         drawPlayerState(&(players[0]));
         drawPlayerState(&(players[1]));
