@@ -41,13 +41,20 @@ void init_tetromino_minis() {
     }
 }
 
+void CLB(char c) {
+    FillRect(0, 0, SCREEN_WIDTH-1, 7, c);
+    FillRect(0, 7, 1, SCREEN_HEIGHT-7, c);
+    FillRect(1, SCREEN_HEIGHT-8, SCREEN_WIDTH-1, 8, c);
+    FillRect(SCREEN_WIDTH-1, 0, 1, SCREEN_HEIGHT-8, c);
+}
+
 void CLS(char c) {
-    vram[VX] = 0;
-    vram[VY] = 0;
+    vram[VX] = 1;
+    vram[VY] = 7;
     vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
-    vram[WIDTH] = SCREEN_WIDTH-1;
-    vram[HEIGHT] = SCREEN_HEIGHT-1;
+    vram[WIDTH] = SCREEN_WIDTH-2;
+    vram[HEIGHT] = SCREEN_HEIGHT-7-8;
     vram[COLOR] = ~c;
     vram[START] = 1;
     wait();
@@ -228,8 +235,8 @@ void drawPlayerState(PlayerState* player) {
     SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, 8, 64, 0);
 
 
-    cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W) + 3;
-    cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H) + 2;
+    cursorX = player->field_offset_x + SPRITE_CHAR_W + 4;
+    cursorY = player->field_offset_y - SPRITE_CHAR_H - 4;
     printnum(player->score);
 
     for(i = 0; i < PREVIEW_COUNT; i++) {
@@ -244,10 +251,10 @@ void drawPlayerState(PlayerState* player) {
 
     if(player->pendingGarbage != 0) {
         FillRect(
-            player->field_offset_x + GRID_SPACING * FIELD_W,
-            player->field_offset_y + GRID_SPACING * FIELD_H - GRID_SPACING * player->pendingGarbage,
-            1,
-            player->pendingGarbage * GRID_SPACING,
+            player->field_offset_x + GRID_SPACING * FIELD_W + 2,
+            player->field_offset_y + GRID_SPACING * FIELD_H - (player->pendingGarbage << 2),
+            2,
+            player->pendingGarbage << 2,
             6
         );
     }

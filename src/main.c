@@ -54,16 +54,21 @@ void main() {
 
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
+    CLB(0);
+    frameflip ^= DMA_PAGE_OUT | DMA_VRAM_PAGE;
+    flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
+    *dma_flags = flagsMirror;
+    CLB(0);
 
     initPlayerState(&(players[0]));
     players[0].field_offset_x = 8;
-    players[0].field_offset_y = 16;
+    players[0].field_offset_y = 24;
     players[0].heldPiece.x = 0;
     players[0].heldPiece.y = 0;
 
     initPlayerState(&(players[1]));
     players[1].field_offset_x = 80;
-    players[1].field_offset_y = 16;
+    players[1].field_offset_y = 24;
     players[1].heldPiece.x = 0;
     players[1].heldPiece.y = 0;
 
@@ -75,7 +80,7 @@ void main() {
         players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
 
         CLS(BG_COLOR);
-        FillRect(SCREEN_WIDTH-1, 0, 1, SCREEN_HEIGHT-1, 3);
+        FillRect(SCREEN_WIDTH-1, 7, 1, SCREEN_HEIGHT-15, 3);
 
         drawPlayerState(&(players[0]));
         drawPlayerState(&(players[1]));

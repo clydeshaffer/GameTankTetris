@@ -19,6 +19,7 @@ void load_spritesheet();
 
 void init_tetromino_minis();
 
+void CLB(char c);
 void CLS(char c);
 
 void FillRect(char x, char y, char w, char h, char c);
