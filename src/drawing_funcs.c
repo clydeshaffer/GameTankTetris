@@ -18,6 +18,26 @@ void load_spritesheet() {
     inflatemem(vram, &GameSprites);
 }
 
+void init_tetromino_minis() {
+    char i, x, y, r, c;
+    char *vram_ptr, *tet_ptr;
+    flagsMirror = DMA_NMI | DMA_IRQ;
+    *dma_flags = flagsMirror;
+    vram_ptr = vram;
+    tet_ptr = tetrominoes;
+    for(i = 0; i < TET_COUNT; i++) {
+        for(r = 0; r < PIECEBUF_WIDTH; r++) {
+            for(c = 0; c < PIECEBUF_WIDTH; c++) {
+                *vram_ptr = *tet_ptr;
+                vram_ptr++;
+                tet_ptr++;
+            }
+            vram_ptr += SCREEN_WIDTH - PIECEBUF_WIDTH;
+        }
+        vram_ptr += SCREEN_WIDTH * 3;
+    }
+}
+
 void CLS(char c) {
     vram[VX] = 0;
     vram[VY] = 0;
@@ -38,6 +58,17 @@ void FillRect(char x, char y, char w, char h, char c) {
     vram[WIDTH] = w;
     vram[HEIGHT] = h;
     vram[COLOR] = ~c;
+    vram[START] = 1;
+    wait();
+}
+
+void SpriteRect(char x, char y, char w, char h, char gx, char gy) {
+    vram[VX] = x;
+    vram[VY] = y;
+    vram[GX] = gx;
+    vram[GY] = gy;
+    vram[WIDTH] = w;
+    vram[HEIGHT] = h;
     vram[START] = 1;
     wait();
 }
@@ -151,7 +182,19 @@ void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY) {
     }
 }
 
+void draw_mini(const char tet_index, char x, char y) {
+    vram[GX] = 0;
+    vram[GY] = tet_index * 8;
+    vram[WIDTH] = PIECEBUF_WIDTH;
+    vram[HEIGHT] = PIECEBUF_WIDTH;
+    vram[VX] = x;
+    vram[VY] = y;
+    vram[START] = 1;
+    wait();
+}
+
 void drawPlayerState(PlayerState* player) {
+    char i;
     flagsMirror |= DMA_TRANS;
     *dma_flags = flagsMirror;
     FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, GRID_SPACING * FIELD_H, 0);
@@ -178,6 +221,14 @@ void drawPlayerState(PlayerState* player) {
     cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W);
     cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H);
     printnum(player->score);
+
+    for(i = 0; i < PREVIEW_COUNT; i++) {
+        draw_mini(player->bag[(player->bag_index + i) % (TET_COUNT*2)], player->field_offset_x + (i * 8) + player->bag_anim, player->field_offset_y);
+    }
+    if(player->bag_anim > 0) {
+        player->bag_anim--;
+    }
+    FillRect(player->field_offset_x + (i * 8), player->field_offset_y, SPRITE_CHAR_W, PIECEBUF_WIDTH, 3);
 
     if(player->pendingGarbage != 0) {
         FillRect(

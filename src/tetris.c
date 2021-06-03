@@ -23,7 +23,7 @@ const unsigned char tetro_index[TET_COUNT] = {0, PIECEBUF_SIZE, PIECEBUF_SIZE*2,
  * Tetrominoes in I J L O S T Z order
  * Values represent the color, 0=clear
  */
-const unsigned char tetrominoes[PIECEBUF_SIZE*7] = {
+const unsigned char tetrominoes[PIECEBUF_SIZE*TET_COUNT] = {
       0,  0,  0,  0,  0,
       0,  0,  0,  0,  0,
       0,244,244,244,244,
@@ -96,21 +96,6 @@ int xorshift16(int x) {
 int rnd_seed = 234;
 
 int rnd() {
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
-    rnd_seed = xorshift16(rnd_seed);
     rnd_seed = xorshift16(rnd_seed);
     return rnd_seed;
 }
@@ -358,8 +343,42 @@ void addGarbage(char* playField, char amount) {
     }
 }
 
+void init_bag(char *fullbag) {
+    char i;
+    for(i = 0; i < TET_COUNT*2; i++) {
+        fullbag[i] = i % TET_COUNT;
+    }
+}
+
+void shuffle_bag(char *bag) {
+    char tmp, i, pick;
+    for(i = 0; i < TET_COUNT; i++) {
+        pick = ((rnd() & 0x7F) % (TET_COUNT - i)) + i;
+        tmp = bag[i];
+        bag[i] = bag[pick];
+        bag[pick] = tmp;
+    }
+}
+
+char take_next_piece(PlayerState* player) {
+    char next_piece = player->bag[player->bag_index];
+    player->bag_index = (player->bag_index + 1) % (TET_COUNT*2);
+    player->bag_anim = 8;
+    if(player->bag_index == 0) {
+        shuffle_bag(player->bag+TET_COUNT);
+    } else if(player->bag_index == TET_COUNT) {
+        shuffle_bag(player->bag);
+    }
+    return next_piece;
+}
+
 void initPlayerState(PlayerState* player) {
-    init_piece(rnd(), &(player->currentPos), player->currentPiece);
+    init_bag(player->bag);
+    shuffle_bag(player->bag);
+    shuffle_bag(player->bag+TET_COUNT);
+    init_piece(player->bag[0], &(player->currentPos), player->currentPiece);
+    player->bag_index = 1;
+    player->bag_anim = 0;
     player->fallRate = 10;
     player->fallTimer = 0;
     player->score = 0;
@@ -381,7 +400,7 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
             player->currentPos.y++;
         } else if(!(player->flags&PLAYER_DIDHOLD) && (inputs & INPUT_MASK_C & ~last_inputs)) {
             if(player->heldPiece.t == TET_COUNT) {
-                tmp = rnd();
+                tmp = take_next_piece(player);
             } else {
                 tmp = player->heldPiece.t;
             }
@@ -482,7 +501,7 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
                             player->pendingGarbage = 0;
                         }
 
-                        init_piece(rnd(),  &(player->currentPos), player->currentPiece);
+                        init_piece(take_next_piece(player),  &(player->currentPos), player->currentPiece);
                         player->fallTimer = 255 - player->fallRate;
                         player->flags &= ~PLAYER_DIDHOLD;
                     } else {

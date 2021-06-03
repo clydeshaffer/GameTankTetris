@@ -41,6 +41,7 @@ void main() {
     init_dynawave();
 
     load_spritesheet();
+    init_tetromino_minis();
 
     *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS;
     FillRect(0, SCREEN_HEIGHT-1, SCREEN_WIDTH - 1, 1, 0);

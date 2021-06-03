@@ -11,6 +11,7 @@
 #define PIECEBUF_SIZE 25
 #define NUM_KICKTESTS 5
 #define LOCK_FRAMES 15
+#define PREVIEW_COUNT 5
 
 #define TET_I 0
 #define TET_J 1
@@ -40,6 +41,9 @@ typedef struct {
     int score;
     char pendingGarbage;
     char combo;
+    char bag[TET_COUNT*2];
+    char bag_index;
+    char bag_anim;
 } PlayerState;
 
 extern const unsigned char tetro_index[TET_COUNT];

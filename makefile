@@ -17,6 +17,14 @@ AOBJS = $(patsubst %,$(ODIR)/%,$(_AOBJS))
 
 ASSETDEPS = assets/gamesprites.gtg.deflate lib/dynawave.acp.deflate lib/inflate_e000_0200.obx
 
+bin/tetris.gtr: $(AOBJS) $(COBJS) $(LLIBS) sprites
+	mkdir -p $(@D)
+	$(LN) $(LFLAGS) $(AOBJS) $(COBJS) -o $@ $(LLIBS)
+
+$(ODIR)/assets.o: src/assets.s sprites
+	mkdir -p $(@D)
+	$(AS) $(AFLAGS) -o $@ $<
+
 $(ODIR)/%.si: src/%.c src/%.h
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) -o $@ $<
@@ -33,13 +41,14 @@ $(ODIR)/%.o: src/%.s
 	mkdir -p $(@D)
 	$(AS) $(AFLAGS) -o $@ $<
 
-bin/tetris.gtr: $(AOBJS) $(COBJS) $(LLIBS)
-	mkdir -p $(@D)
-	$(LN) $(LFLAGS) $(AOBJS) $(COBJS) -o $@ $(LLIBS)
-
 lib/gametank.lib: src/crt0.s
 	$(AS) src/crt0.s -o build/crt0.o
 	ar65 a lib/gametank.lib build/crt0.o
+
+sprites: assets/gamesprites.bmp
+	cd assets ;\
+	tail -c 16384 gamesprites.bmp > gamesprites.gtg ;\
+	zopfli --deflate gamesprites.gtg
 
 .PHONY: clean
 
