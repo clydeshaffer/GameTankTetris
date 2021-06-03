@@ -8,6 +8,9 @@
 char cursorX, cursorY;
 
 extern const unsigned char* GameSprites;
+
+const unsigned char tetro_colors[TET_COUNT+2] = { 0 , 244, 219, 92, 61, 29, 155, 124, 5};
+
 extern void wait();
 extern void nop5();
 extern void nop10();
@@ -28,7 +31,7 @@ void init_tetromino_minis() {
     for(i = 0; i < TET_COUNT; i++) {
         for(r = 0; r < PIECEBUF_WIDTH; r++) {
             for(c = 0; c < PIECEBUF_WIDTH; c++) {
-                *vram_ptr = *tet_ptr;
+                *vram_ptr = tetro_colors[*tet_ptr];
                 vram_ptr++;
                 tet_ptr++;
             }
@@ -139,8 +142,7 @@ void print(char* str) {
 
 void draw_field(char* field, char x, char y) {
     char r, c, vx, vy, f;
-    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
-    vram[GY] = 0;
+    vram[GY] = 64;
     vram[WIDTH] = GRID_SPACING;
     vram[HEIGHT] = GRID_SPACING;
     vy = y;
@@ -149,9 +151,9 @@ void draw_field(char* field, char x, char y) {
         for(c = 0; c < FIELD_W; c++) {
             f = *field;
             if(f) {
+                vram[GX] = f*4;
                 vram[VX] = vx;
                 vram[VY] = vy;
-                vram[COLOR] = f ^ 0xFF;
                 vram[START] = 1;
                 wait();
             }
@@ -164,16 +166,15 @@ void draw_field(char* field, char x, char y) {
 
 void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY) {
     char r, c, i = 0;
-    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
-    vram[GY] = 0;
+    vram[GY] = 64;
     vram[WIDTH] = GRID_SPACING;
     vram[HEIGHT] = GRID_SPACING;
     for(r = 0; r < PIECEBUF_WIDTH*GRID_SPACING; r+=GRID_SPACING) {
         for(c = 0; c < PIECEBUF_WIDTH*GRID_SPACING; c+=GRID_SPACING) {
             if(!!piece[i]) {
+                vram[GX] = piece[i]*4;
                 vram[VX] = GRID_SPACING*pos->x + c + offsetX - 2*GRID_SPACING;
                 vram[VY] = GRID_SPACING*pos->y + r + offsetY - 2*GRID_SPACING;
-                vram[COLOR] = ~piece[i];
                 vram[START] = 1;
                 wait();
             }
@@ -194,32 +195,41 @@ void draw_mini(const char tet_index, char x, char y) {
 }
 
 void drawPlayerState(PlayerState* player) {
-    char i;
-    flagsMirror |= DMA_TRANS;
-    *dma_flags = flagsMirror;
-    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, GRID_SPACING * FIELD_H, 0);
-
+    char i, j;
     flagsMirror &= ~DMA_TRANS;
     *dma_flags = flagsMirror;
+    SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, GRID_SPACING * FIELD_H + 4, 64, 0);
+
     draw_field(player->playField, player->field_offset_x, player->field_offset_y);
     draw_piece(&(player->currentPos), player->currentPiece, player->field_offset_x, player->field_offset_y);
 
 
-    FillRect(player->field_offset_x + player->heldPiece.x*GRID_SPACING - GRID_SPACING*2,
-        player->field_offset_y + player->heldPiece.y*GRID_SPACING - GRID_SPACING*2,
-        GRID_SPACING * PIECEBUF_WIDTH, GRID_SPACING * PIECEBUF_WIDTH, 1);
+    FillRect(player->field_offset_x +20,
+        player->field_offset_y - 15,
+        GRID_SPACING * PIECEBUF_WIDTH, 12, 2);
 
     if(player->heldPiece.t != TET_COUNT) {
+        i = 0;
+        j = 0;
+        if(player->heldPiece.t == TET_I) {
+            i = 2;
+            j = 2;
+        }
+        else if(player->heldPiece.t == TET_O) {
+            i = 2;
+        }
         draw_piece(
             &(player->heldPiece),
             &(tetrominoes[tetro_index[player->heldPiece.t]]),
-            player->field_offset_x, player->field_offset_y);
+            player->field_offset_x - i + 28, player->field_offset_y - j - 9);
     }
 
-    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, 6, 3);
+    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, 6, BG_COLOR);
+    SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, 8, 64, 0);
 
-    cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W);
-    cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H);
+
+    cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W) + 3;
+    cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H) + 2;
     printnum(player->score);
 
     for(i = 0; i < PREVIEW_COUNT; i++) {
@@ -228,7 +238,9 @@ void drawPlayerState(PlayerState* player) {
     if(player->bag_anim > 0) {
         player->bag_anim--;
     }
-    FillRect(player->field_offset_x + (i * 8), player->field_offset_y, SPRITE_CHAR_W, PIECEBUF_WIDTH, 3);
+    FillRect(player->field_offset_x + (i * 8), player->field_offset_y, SPRITE_CHAR_W, PIECEBUF_WIDTH, BG_COLOR);
+    SpriteRect(player->field_offset_x + (i * 8), player->field_offset_y,SPRITE_CHAR_W, PIECEBUF_WIDTH, 106, 2);
+
 
     if(player->pendingGarbage != 0) {
         FillRect(

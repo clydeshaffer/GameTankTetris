@@ -39,4 +39,6 @@ void drawPlayerState(PlayerState* player);
 
 extern char cursorX, cursorY;
 
+extern const unsigned char tetro_colors[TET_COUNT+2];
+
 #endif
