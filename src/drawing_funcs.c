@@ -1,40 +1,63 @@
 /*
  * GameTank-specific implementation of drawing functions
  */
+#include <zlib.h>
 #include "drawing_funcs.h"
 #include "gametank.h"
 
 char cursorX, cursorY;
 
+extern const unsigned char* GameSprites;
+
+const unsigned char tetro_colors[TET_COUNT+2] = { 0 , 244, 219, 92, 61, 29, 155, 124, 5};
+
+extern void wait();
+extern void nop5();
+extern void nop10();
+
 void load_spritesheet() {
     flagsMirror = DMA_NMI | DMA_IRQ;
     *dma_flags = flagsMirror;
-    asm {
-        xref GameSprites
-        xref InflateParams
-        xref Inflate
-        LDA #<GameSprites
-        STA InflateParams
-        LDA #>GameSprites
-        STA InflateParams+1
-        LDA #$00
-        STA InflateParams+2
-        LDA #$40
-        STA InflateParams+3
-        JSR Inflate
-    };
+    inflatemem(vram, &GameSprites);
+}
+
+void init_tetromino_minis() {
+    char i, x, y, r, c;
+    char *vram_ptr, *tet_ptr;
+    flagsMirror = DMA_NMI | DMA_IRQ;
+    *dma_flags = flagsMirror;
+    vram_ptr = vram;
+    tet_ptr = tetrominoes;
+    for(i = 0; i < TET_COUNT; i++) {
+        for(r = 0; r < PIECEBUF_WIDTH; r++) {
+            for(c = 0; c < PIECEBUF_WIDTH; c++) {
+                *vram_ptr = tetro_colors[*tet_ptr];
+                vram_ptr++;
+                tet_ptr++;
+            }
+            vram_ptr += SCREEN_WIDTH - PIECEBUF_WIDTH;
+        }
+        vram_ptr += SCREEN_WIDTH * 3;
+    }
+}
+
+void CLB(char c) {
+    FillRect(0, 0, SCREEN_WIDTH-1, 7, c);
+    FillRect(0, 7, 1, SCREEN_HEIGHT-7, c);
+    FillRect(1, SCREEN_HEIGHT-8, SCREEN_WIDTH-1, 8, c);
+    FillRect(SCREEN_WIDTH-1, 0, 1, SCREEN_HEIGHT-8, c);
 }
 
 void CLS(char c) {
-    vram[VX] = 0;
-    vram[VY] = 0;
+    vram[VX] = 1;
+    vram[VY] = 7;
     vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
     vram[GY] = 0;
-    vram[WIDTH] = SCREEN_WIDTH-1;
-    vram[HEIGHT] = SCREEN_HEIGHT-1;
+    vram[WIDTH] = SCREEN_WIDTH-2;
+    vram[HEIGHT] = SCREEN_HEIGHT-7-8;
     vram[COLOR] = ~c;
     vram[START] = 1;
-    asm wai;
+    wait();
 }
 
 void FillRect(char x, char y, char w, char h, char c) {
@@ -46,7 +69,18 @@ void FillRect(char x, char y, char w, char h, char c) {
     vram[HEIGHT] = h;
     vram[COLOR] = ~c;
     vram[START] = 1;
-    asm wai;
+    wait();
+}
+
+void SpriteRect(char x, char y, char w, char h, char gx, char gy) {
+    vram[VX] = x;
+    vram[VY] = y;
+    vram[GX] = gx;
+    vram[GY] = gy;
+    vram[WIDTH] = w;
+    vram[HEIGHT] = h;
+    vram[START] = 1;
+    wait();
 }
 
 void printnum(int num) {
@@ -58,34 +92,12 @@ void printnum(int num) {
     if(num == 0) {
         vram[GX] = 0;
         vram[START] = 1;
-        asm {
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-            }
+        wait();
     } else {
         while(num != 0) {
             vram[GX] = (num % 10) << 3;
             vram[START] = 1;
-            asm {
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-            }
+            wait();
             cursorX -= 8;
             num = num / 10;
             vram[VX] = cursorX;
@@ -120,18 +132,7 @@ void print(char* str) {
             vram[VX] = cursorX;
             vram[VY] = cursorY;
             vram[START] = 1;
-            asm {
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-            }
+            wait();
             cursorX += 8;
         }
         str++;
@@ -148,8 +149,7 @@ void print(char* str) {
 
 void draw_field(char* field, char x, char y) {
     char r, c, vx, vy, f;
-    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
-    vram[GY] = 0;
+    vram[GY] = 64;
     vram[WIDTH] = GRID_SPACING;
     vram[HEIGHT] = GRID_SPACING;
     vy = y;
@@ -158,17 +158,11 @@ void draw_field(char* field, char x, char y) {
         for(c = 0; c < FIELD_W; c++) {
             f = *field;
             if(f) {
+                vram[GX] = f*4;
                 vram[VX] = vx;
                 vram[VY] = vy;
-                vram[COLOR] = f ^ 0xFF;
                 vram[START] = 1;
-                asm {
-                    nop
-                    nop
-                    nop
-                    nop
-                    nop
-                }
+                wait();
             }
             vx+=GRID_SPACING;
             field++;
@@ -179,65 +173,91 @@ void draw_field(char* field, char x, char y) {
 
 void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY) {
     char r, c, i = 0;
-    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
-    vram[GY] = 0;
+    vram[GY] = 64;
     vram[WIDTH] = GRID_SPACING;
     vram[HEIGHT] = GRID_SPACING;
     for(r = 0; r < PIECEBUF_WIDTH*GRID_SPACING; r+=GRID_SPACING) {
         for(c = 0; c < PIECEBUF_WIDTH*GRID_SPACING; c+=GRID_SPACING) {
             if(!!piece[i]) {
+                vram[GX] = piece[i]*4;
                 vram[VX] = GRID_SPACING*pos->x + c + offsetX - 2*GRID_SPACING;
                 vram[VY] = GRID_SPACING*pos->y + r + offsetY - 2*GRID_SPACING;
-                vram[COLOR] = ~piece[i];
                 vram[START] = 1;
-                asm {
-                    nop
-                    nop
-                    nop
-                    nop
-                    nop
-                }
+                wait();
             }
             i++;
         }
     }
 }
 
-void drawPlayerState(PlayerState* player) {
-    flagsMirror |= DMA_TRANS;
-    *dma_flags = flagsMirror;
-    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, GRID_SPACING * FIELD_H, 0);
+void draw_mini(const char tet_index, char x, char y) {
+    vram[GX] = 0;
+    vram[GY] = tet_index * 8;
+    vram[WIDTH] = PIECEBUF_WIDTH;
+    vram[HEIGHT] = PIECEBUF_WIDTH;
+    vram[VX] = x;
+    vram[VY] = y;
+    vram[START] = 1;
+    wait();
+}
 
+void drawPlayerState(PlayerState* player) {
+    char i, j;
     flagsMirror &= ~DMA_TRANS;
     *dma_flags = flagsMirror;
+    SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, GRID_SPACING * FIELD_H + 4, 64, 0);
+
     draw_field(player->playField, player->field_offset_x, player->field_offset_y);
     draw_piece(&(player->currentPos), player->currentPiece, player->field_offset_x, player->field_offset_y);
 
 
-    FillRect(player->field_offset_x + player->heldPiece.x*GRID_SPACING - GRID_SPACING*2,
-        player->field_offset_y + player->heldPiece.y*GRID_SPACING - GRID_SPACING*2,
-        GRID_SPACING * PIECEBUF_WIDTH, GRID_SPACING * PIECEBUF_WIDTH, 1);
+    FillRect(player->field_offset_x +20,
+        player->field_offset_y - 15,
+        GRID_SPACING * PIECEBUF_WIDTH, 12, 2);
 
     if(player->heldPiece.t != TET_COUNT) {
+        i = 0;
+        j = 0;
+        if(player->heldPiece.t == TET_I) {
+            i = 2;
+            j = 2;
+        }
+        else if(player->heldPiece.t == TET_O) {
+            i = 2;
+        }
         draw_piece(
             &(player->heldPiece),
             &(tetrominoes[tetro_index[player->heldPiece.t]]),
-            player->field_offset_x, player->field_offset_y);
+            player->field_offset_x - i + 28, player->field_offset_y - j - 9);
     }
 
-    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, 6, 3);
+    FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, 6, BG_COLOR);
+    SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, 8, 64, 0);
 
-    cursorX = player->field_offset_x + (GRID_SPACING * FIELD_W - SPRITE_CHAR_W);
-    cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H);
+
+    cursorX = player->field_offset_x + SPRITE_CHAR_W + 4;
+    cursorY = player->field_offset_y - SPRITE_CHAR_H - 4;
     printnum(player->score);
 
-    FillRect(
-        player->field_offset_x + GRID_SPACING * FIELD_W,
-        player->field_offset_y + GRID_SPACING * FIELD_H - GRID_SPACING * player->pendingGarbage,
-        1,
-        player->pendingGarbage * GRID_SPACING,
-        6
-    );
+    for(i = 0; i < PREVIEW_COUNT; i++) {
+        draw_mini(player->bag[(player->bag_index + i) % (TET_COUNT*2)], player->field_offset_x + (i * 8) + player->bag_anim, player->field_offset_y);
+    }
+    if(player->bag_anim > 0) {
+        player->bag_anim--;
+    }
+    FillRect(player->field_offset_x + (i * 8), player->field_offset_y, PIECEBUF_WIDTH, PIECEBUF_WIDTH, BG_COLOR);
+    SpriteRect(player->field_offset_x + (i * 8), player->field_offset_y,PIECEBUF_WIDTH, PIECEBUF_WIDTH, 106, 2);
+
+
+    if(player->pendingGarbage != 0) {
+        FillRect(
+            player->field_offset_x + GRID_SPACING * FIELD_W + 2,
+            player->field_offset_y + GRID_SPACING * FIELD_H - (player->pendingGarbage << 2),
+            2,
+            player->pendingGarbage << 2,
+            6
+        );
+    }
 
     if(player->flags & PLAYER_DEAD) {
         cursorX = player->field_offset_x + (GRID_SPACING * (FIELD_W/2 - 5));

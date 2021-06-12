@@ -1,46 +1,54 @@
-ifeq ($(OS), Windows_NT)
-	CC = WDC02CC
-	AS = WDC02AS
-	LN = WDCLN
-else
-	CC = wine WDC02CC
-	AS = wine WDC02AS
-	LN = wine WDCLN
-endif
+CC = cc65
+AS = ca65
+LN = ld65
+
+CFLAGS = -t none -O --cpu 65sc02
+AFLAGS = --cpu 65sc02 --bin-include-dir lib --bin-include-dir assets
+LFLAGS = -C gametank-32k.cfg -m out.map
+LLIBS = lib/gametank.lib
 
 SDIR = src
 ODIR = build
 
-_COBJS = gametank.obj dynawave.obj music.obj drawing_funcs.obj tetris.obj main.obj
+_COBJS = gametank.o dynawave.o music.o drawing_funcs.o tetris.o main.o
 COBJS = $(patsubst %,$(ODIR)/%,$(_COBJS))
-_AOBJS = assets.obj boot.obj
+_AOBJS = assets.o wait.o vectors.o interrupt.o
 AOBJS = $(patsubst %,$(ODIR)/%,$(_AOBJS))
-
-CFLAGS = -SP -SM -I src -DUSING_02
-AFLAGS = -I assets -I lib -DUSING_02
-LFLAGS = -HB -C8000 -D500,
-LLIBS = -LC
 
 ASSETDEPS = assets/gamesprites.gtg.deflate lib/dynawave.acp.deflate lib/inflate_e000_0200.obx
 
-$(ODIR)/%.obj: src/%.c src/%.h
+bin/tetris.gtr: $(AOBJS) $(COBJS) $(LLIBS) sprites
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -o $@ $<
+	$(LN) $(LFLAGS) $(AOBJS) $(COBJS) -o $@ $(LLIBS)
 
-$(ODIR)/%.obj: src/%.c
-	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -o $@ $<
-
-$(ODIR)/%.obj: src/%.asm
+$(ODIR)/assets.o: src/assets.s sprites
 	mkdir -p $(@D)
 	$(AS) $(AFLAGS) -o $@ $<
 
-bin/tetris.gtr: $(ODIR)/tetris.bin
-	dd bs=32768 skip=1 if=$< of=$@
-
-$(ODIR)/tetris.bin: $(COBJS) $(AOBJS)
+$(ODIR)/%.si: src/%.c src/%.h
 	mkdir -p $(@D)
-	$(LN) $(LFLAGS) $^ -o $@ $(LLIBS)
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(ODIR)/%.si: src/%.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(ODIR)/%.o: $(ODIR)/%.si
+	mkdir -p $(@D)
+	$(AS) $(AFLAGS) -o $@ $<
+
+$(ODIR)/%.o: src/%.s
+	mkdir -p $(@D)
+	$(AS) $(AFLAGS) -o $@ $<
+
+lib/gametank.lib: src/crt0.s
+	$(AS) src/crt0.s -o build/crt0.o
+	ar65 a lib/gametank.lib build/crt0.o
+
+sprites: assets/gamesprites.bmp
+	cd assets ;\
+	tail -c 16384 gamesprites.bmp > gamesprites.gtg ;\
+	zopfli --deflate gamesprites.gtg
 
 .PHONY: clean
 

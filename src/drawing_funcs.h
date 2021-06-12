@@ -17,9 +17,14 @@
 
 void load_spritesheet();
 
+void init_tetromino_minis();
+
+void CLB(char c);
 void CLS(char c);
 
 void FillRect(char x, char y, char w, char h, char c);
+
+void SpriteRect(char x, char y, char w, char h, char gx, char gy);
 
 void printnum(int num);
 
@@ -29,8 +34,12 @@ void draw_field(char* field, char x, char y);
 
 void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY);
 
+void draw_mini(const char tet_index, char x, char y);
+
 void drawPlayerState(PlayerState* player);
 
 extern char cursorX, cursorY;
+
+extern const unsigned char tetro_colors[TET_COUNT+2];
 
 #endif
