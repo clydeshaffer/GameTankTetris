@@ -44,20 +44,25 @@ void main() {
     init_tetromino_minis();
 
     *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS;
+    *banking_reg = 0;
     FillRect(0, SCREEN_HEIGHT-1, SCREEN_WIDTH - 1, 1, 0);
-    *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | DMA_VRAM_PAGE | DMA_PAGE_OUT;
+    *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | DMA_PAGE_OUT;
+    *banking_reg = BANK_VRAM_MASK;
     FillRect(0, SCREEN_HEIGHT-1, SCREEN_WIDTH - 1, 1, 0);
     *dma_flags = DMA_NMI | DMA_CPU_TO_VRAM;
+    *banking_reg = 0;
     vram[SCREEN_HEIGHT*SCREEN_WIDTH-1] = 0;
-    *dma_flags = DMA_NMI | DMA_CPU_TO_VRAM | DMA_VRAM_PAGE;
+    *banking_reg = BANK_VRAM_MASK;
     vram[SCREEN_HEIGHT*SCREEN_WIDTH-1] = 0;
 
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
     CLB(0);
-    frameflip ^= DMA_PAGE_OUT | DMA_VRAM_PAGE;
+    frameflip ^= DMA_PAGE_OUT;
+    bankflip ^= BANK_VRAM_MASK;
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
+    *banking_reg = bankflip;
     CLB(0);
 
     initPlayerState(&(players[0]));
@@ -84,9 +89,11 @@ void main() {
         drawPlayerState(&(players[0]));
         drawPlayerState(&(players[1]));
 
-        frameflip ^= DMA_PAGE_OUT | DMA_VRAM_PAGE;
+        frameflip ^= DMA_PAGE_OUT;
+        bankflip ^= BANK_VRAM_MASK;
         flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
         *dma_flags = flagsMirror;
+        *banking_reg = bankflip;
         Sleep(1);
     }
 }

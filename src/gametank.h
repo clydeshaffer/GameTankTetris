@@ -7,6 +7,7 @@
 
 #define audio_reset ((volatile char *) 0x2000)
 #define audio_nmi ((volatile char *) 0x2001)
+#define banking_reg ((volatile char *) 0x2005)
 #define audio_rate ((volatile char *) 0x2006)
 #define dma_flags ((volatile char *) 0x2007)
 #define via ((volatile char*) 0x2800)
@@ -27,11 +28,23 @@
 #define DMA_ENABLE 1
 #define DMA_PAGE_OUT 2
 #define DMA_NMI 4
-#define DMA_GRAM_PAGE 8
-#define DMA_VRAM_PAGE 16
+#define DMA_COLORFILL 8
+#define DMA_AUTOTILE 16
 #define DMA_CPU_TO_VRAM 32
 #define DMA_IRQ 64
 #define DMA_TRANS 128
+
+#define BANK_GRAM_MASK 0b00000111
+#define BANK_VRAM_MASK 0b00001000
+#define BANK_WRAPX_MASK 0b00010000
+#define BANK_WRAPY_MASK 0b00100000
+#define BANK_RAM_MASK 0b11000000
+
+#define SET_COLORFILL flagsMirror |= DMA_COLORFILL; \
+                    *dma_flags = flagsMirror;
+
+#define UNSET_COLORFILL flagsMirror &= ~DMA_COLORFILL; \
+                    *dma_flags = flagsMirror;
 
 #define VX 0
 #define VY 1
@@ -67,6 +80,6 @@
 #define IFR 13
 #define IER 14
 
-extern char frameflag, frameflip, flagsMirror;
+extern char frameflag, frameflip, bankflip, flagsMirror;
 
 #endif

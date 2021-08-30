@@ -42,6 +42,7 @@ void init_tetromino_minis() {
 }
 
 void CLB(char c) {
+    SET_COLORFILL
     FillRect(0, 0, SCREEN_WIDTH-1, 7, c);
     FillRect(0, 7, 1, SCREEN_HEIGHT-7, c);
     FillRect(1, SCREEN_HEIGHT-8, SCREEN_WIDTH-1, 8, c);
@@ -49,9 +50,10 @@ void CLB(char c) {
 }
 
 void CLS(char c) {
+    SET_COLORFILL
     vram[VX] = 1;
     vram[VY] = 7;
-    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
+    vram[GX] = 0;
     vram[GY] = 0;
     vram[WIDTH] = SCREEN_WIDTH-2;
     vram[HEIGHT] = SCREEN_HEIGHT-7-8;
@@ -63,7 +65,7 @@ void CLS(char c) {
 void FillRect(char x, char y, char w, char h, char c) {
     vram[VX] = x;
     vram[VY] = y;
-    vram[GX] = DMA_GX_SOLIDCOLOR_FLAG;
+    vram[GX] = 0;
     vram[GY] = 0;
     vram[WIDTH] = w;
     vram[HEIGHT] = h;
@@ -205,12 +207,13 @@ void drawPlayerState(PlayerState* player) {
     char i, j;
     flagsMirror &= ~DMA_TRANS;
     *dma_flags = flagsMirror;
+    UNSET_COLORFILL
     SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, GRID_SPACING * FIELD_H + 4, 64, 0);
 
     draw_field(player->playField, player->field_offset_x, player->field_offset_y);
     draw_piece(&(player->currentPos), player->currentPiece, player->field_offset_x, player->field_offset_y);
 
-
+    SET_COLORFILL
     FillRect(player->field_offset_x +20,
         player->field_offset_y - 15,
         GRID_SPACING * PIECEBUF_WIDTH, 12, 2);
@@ -225,13 +228,16 @@ void drawPlayerState(PlayerState* player) {
         else if(player->heldPiece.t == TET_O) {
             i = 2;
         }
+        UNSET_COLORFILL
         draw_piece(
             &(player->heldPiece),
             &(tetrominoes[tetro_index[player->heldPiece.t]]),
             player->field_offset_x - i + 28, player->field_offset_y - j - 9);
     }
 
+    SET_COLORFILL
     FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, 6, BG_COLOR);
+    UNSET_COLORFILL
     SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, 8, 64, 0);
 
 
@@ -245,11 +251,14 @@ void drawPlayerState(PlayerState* player) {
     if(player->bag_anim > 0) {
         player->bag_anim--;
     }
+    SET_COLORFILL
     FillRect(player->field_offset_x + (i * 8), player->field_offset_y, PIECEBUF_WIDTH, PIECEBUF_WIDTH, BG_COLOR);
+    UNSET_COLORFILL
     SpriteRect(player->field_offset_x + (i * 8), player->field_offset_y,PIECEBUF_WIDTH, PIECEBUF_WIDTH, 106, 2);
 
 
     if(player->pendingGarbage != 0) {
+        SET_COLORFILL
         FillRect(
             player->field_offset_x + GRID_SPACING * FIELD_W + 2,
             player->field_offset_y + GRID_SPACING * FIELD_H - (player->pendingGarbage << 2),
@@ -260,6 +269,7 @@ void drawPlayerState(PlayerState* player) {
     }
 
     if(player->flags & PLAYER_DEAD) {
+        UNSET_COLORFILL
         cursorX = player->field_offset_x + (GRID_SPACING * (FIELD_W/2 - 5));
         cursorY = player->field_offset_y + (GRID_SPACING * FIELD_H/2);
         print("game");

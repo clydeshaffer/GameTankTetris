@@ -1,5 +1,6 @@
 #include "gametank.h"
 
 char frameflag = 0;
-char frameflip = DMA_VRAM_PAGE;
+char frameflip = 0;
+char bankflip = BANK_VRAM_MASK;
 char flagsMirror = 0;
