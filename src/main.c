@@ -4,10 +4,14 @@
 #include "tetris.h"
 #include "drawing_funcs.h"
 
+#define DEFAULT_DMA 197 //DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS
+
 PlayerState players[2];
 
 int inputs = 0, last_inputs = 0;
 int inputs2 = 0, last_inputs2 = 0;
+
+extern void wait();
 
 #pragma optimize(off)
 void updateInputs(){
@@ -38,19 +42,14 @@ void Sleep(int frames) {
 
 void main() {
 
+    via[DDRB] = 0xFF;
+
+    frameflip = DMA_PAGE_OUT;
+
     init_dynawave();
 
     load_spritesheet();
     init_tetromino_minis();
-
-    *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS;
-    FillRect(0, SCREEN_HEIGHT-1, SCREEN_WIDTH - 1, 1, 0);
-    *dma_flags = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | DMA_VRAM_PAGE | DMA_PAGE_OUT;
-    FillRect(0, SCREEN_HEIGHT-1, SCREEN_WIDTH - 1, 1, 0);
-    *dma_flags = DMA_NMI | DMA_CPU_TO_VRAM;
-    vram[SCREEN_HEIGHT*SCREEN_WIDTH-1] = 0;
-    *dma_flags = DMA_NMI | DMA_CPU_TO_VRAM | DMA_VRAM_PAGE;
-    vram[SCREEN_HEIGHT*SCREEN_WIDTH-1] = 0;
 
     flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
     *dma_flags = flagsMirror;
@@ -73,19 +72,30 @@ void main() {
     players[1].heldPiece.y = 0;
 
     while(1){
-        tick_music();
+        //CLS(BG_COLOR); //Start CLS first to parallelize with update
+        *dma_flags = flagsMirror | DMA_GRAM_PAGE;
+        SpriteRect(1,7, SCREEN_WIDTH-2, SCREEN_HEIGHT-7-8, 1, 0);
 
+        tick_music();
         updateInputs();
         players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs, last_inputs);
         players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
 
-        CLS(BG_COLOR);
-
+        wait();
+        *dma_flags = flagsMirror;
+        via[ORB] = 0x80;
+        via[ORB] = 0x00;
         drawPlayerState(&(players[0]));
+        via[ORB] = 0x80;
+        via[ORB] = 0x40;
+        via[ORB] = 0x80;
+        via[ORB] = 0x01;
         drawPlayerState(&(players[1]));
+        via[ORB] = 0x80;
+        via[ORB] = 0x41;
 
         frameflip ^= DMA_PAGE_OUT | DMA_VRAM_PAGE;
-        flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
+        flagsMirror = DEFAULT_DMA | frameflip;
         *dma_flags = flagsMirror;
         Sleep(1);
     }

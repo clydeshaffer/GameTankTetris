@@ -4,7 +4,7 @@
 ;
 ; Wait for interrupt and return
 
-.export  _wait, _stop, _nop5, _nop10
+.export  _wait, _stop, _nwait
 
 ; ---------------------------------------------------------------------------
 ; Wait for interrupt:  Forces the assembler to emit a WAI opcode ($CB)
@@ -30,25 +30,11 @@
 
 .endproc
 
-.proc _nop5
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        RTS
-.endproc
+.proc _nwait: near
 
-.proc _nop10
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        NOP
-        RTS
+           SEI                    ; disable interrupts
+           NOP
+.byte      $CB                    ; Inserts a WAI opcode
+           RTS                    ; Return to caller
+
 .endproc

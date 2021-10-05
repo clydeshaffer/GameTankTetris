@@ -50,6 +50,11 @@ sprites: assets/gamesprites.bmp
 	tail -c 16384 gamesprites.bmp > gamesprites.gtg ;\
 	zopfli --deflate gamesprites.gtg
 
+sprites: assets/background.bmp
+	cd assets ;\
+	tail -c 14464 background.bmp > background.gtg ;\
+	zopfli --deflate background.gtg	
+
 .PHONY: clean
 
 clean:
