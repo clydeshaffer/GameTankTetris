@@ -3,7 +3,7 @@ AS = ca65
 LN = ld65
 
 CFLAGS = -t none -O --cpu 65sc02
-AFLAGS = --cpu 65sc02 --bin-include-dir lib --bin-include-dir assets
+AFLAGS = --cpu 65C02 --bin-include-dir lib --bin-include-dir assets
 LFLAGS = -C gametank-32k.cfg -m out.map
 LLIBS = lib/gametank.lib
 

@@ -12,6 +12,9 @@
 
 .import    copydata, zerobss, initlib, donelib
 
+.PC02
+
+BankReg = $2005
 VIA = $2800
 ORB = 0
 ORAr = 1
@@ -22,6 +25,16 @@ ACR = $B
 PCR = $C
 IFR = $D
 IER = $E
+
+DMA_Flags = $2007
+DMA_VX = $4000
+DMA_VY = $4001
+DMA_GX = $4002
+DMA_GY = $4003
+DMA_WIDTH = $4004
+DMA_HEIGHT = $4005
+DMA_Status = $4006
+DMA_Color = $4007
 
 .include  "zeropage.inc"
 
@@ -41,6 +54,25 @@ _init:    LDX     #$FF                 ; Initialize stack pointer to $01FF
 viaWakeup:
 	inx
 	bne viaWakeup
+
+	LDA #0
+	STA BankReg
+
+	SEI
+	LDA #%11111101
+	STA DMA_Flags
+	LDA #$7F
+	STA DMA_WIDTH
+	STA DMA_HEIGHT
+	STZ DMA_VX
+	STZ DMA_VY
+	STZ DMA_GX
+	STZ DMA_GY
+	LDA #$FF
+	STA DMA_Color
+	LDA #1
+	STA DMA_Status
+	WAI
 
 	LDA #%00000111
 	STA VIA+DDRA

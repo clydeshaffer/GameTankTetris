@@ -60,7 +60,7 @@ void main() {
     CLB(0);
     frameflip ^= DMA_PAGE_OUT;
     bankflip ^= BANK_VRAM_MASK;
-    flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
+    flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip | DMA_AUTOTILE;
     *dma_flags = flagsMirror;
     *banking_reg = bankflip;
     CLB(0);
@@ -91,7 +91,7 @@ void main() {
 
         frameflip ^= DMA_PAGE_OUT;
         bankflip ^= BANK_VRAM_MASK;
-        flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip;
+        flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip | DMA_AUTOTILE;
         *dma_flags = flagsMirror;
         *banking_reg = bankflip;
         Sleep(1);
