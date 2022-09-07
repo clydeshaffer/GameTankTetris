@@ -36,6 +36,8 @@ void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY);
 
 void draw_mini(const char tet_index, char x, char y);
 
+void drawBackground(PlayerState* player);
+
 void drawPlayerState(PlayerState* player);
 
 extern char cursorX, cursorY;

@@ -81,13 +81,22 @@ void main() {
         tick_music();
 
         updateInputs();
-        players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs, last_inputs);
-        players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
-
         CLS(BG_COLOR);
+        via[ORB] = 0x80;
+        via[ORB] = 0x00;
+        drawBackground(&(players[0]));
+        players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs, last_inputs);
+        drawBackground(&(players[1]));
+        players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs2, last_inputs2);
+        via[ORB] = 0x80;
+        via[ORB] = 0x40;
 
+        via[ORB] = 0x80;
+        via[ORB] = 0x01;
         drawPlayerState(&(players[0]));
         drawPlayerState(&(players[1]));
+        via[ORB] = 0x80;
+        via[ORB] = 0x41;
 
         frameflip ^= DMA_PAGE_OUT;
         bankflip ^= BANK_VRAM_MASK;

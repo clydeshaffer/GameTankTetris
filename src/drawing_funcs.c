@@ -82,7 +82,6 @@ void SpriteRect(char x, char y, char w, char h, char gx, char gy) {
     vram[WIDTH] = w;
     vram[HEIGHT] = h;
     vram[START] = 1;
-    wait();
 }
 
 void printnum(int num) {
@@ -203,13 +202,17 @@ void draw_mini(const char tet_index, char x, char y) {
     wait();
 }
 
+void drawBackground(PlayerState* player) {
+    UNSET_COLORFILL
+    SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, GRID_SPACING * FIELD_H + 4, 64, 0);
+}
+
 void drawPlayerState(PlayerState* player) {
     char i, j;
     flagsMirror &= ~DMA_TRANS;
     *dma_flags = flagsMirror;
-    UNSET_COLORFILL
-    SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, GRID_SPACING * FIELD_H + 4, 64, 0);
 
+    UNSET_COLORFILL
     draw_field(player->playField, player->field_offset_x, player->field_offset_y);
     draw_piece(&(player->currentPos), player->currentPiece, player->field_offset_x, player->field_offset_y);
 
@@ -239,7 +242,7 @@ void drawPlayerState(PlayerState* player) {
     FillRect(player->field_offset_x, player->field_offset_y, GRID_SPACING * FIELD_W, 6, BG_COLOR);
     UNSET_COLORFILL
     SpriteRect(player->field_offset_x-2, player->field_offset_y-2, GRID_SPACING * FIELD_W+4, 8, 64, 0);
-
+    wait();
 
     cursorX = player->field_offset_x + SPRITE_CHAR_W + 4;
     cursorY = player->field_offset_y - SPRITE_CHAR_H - 4;
@@ -255,7 +258,7 @@ void drawPlayerState(PlayerState* player) {
     FillRect(player->field_offset_x + (i * 8), player->field_offset_y, PIECEBUF_WIDTH, PIECEBUF_WIDTH, BG_COLOR);
     UNSET_COLORFILL
     SpriteRect(player->field_offset_x + (i * 8), player->field_offset_y,PIECEBUF_WIDTH, PIECEBUF_WIDTH, 106, 2);
-
+    wait();
 
     if(player->pendingGarbage != 0) {
         SET_COLORFILL
