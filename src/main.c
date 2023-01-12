@@ -1,32 +1,11 @@
 #include "gametank.h"
+#include "input.h"
 #include "dynawave.h"
 #include "music.h"
 #include "tetris.h"
 #include "drawing_funcs.h"
 
 PlayerState players[2];
-
-int inputs = 0, last_inputs = 0;
-int inputs2 = 0, last_inputs2 = 0;
-
-#pragma optimize(off)
-void updateInputs(){
-    char inputsA, inputsB;
-    inputsA = *gamepad_2;
-    inputsA = *gamepad_1;
-    inputsB = *gamepad_1;
-
-    last_inputs = inputs;
-    inputs = ~((((int) inputsB) << 8) | inputsA);
-    inputs &= INPUT_MASK_ALL_KEYS;
-
-    inputsA = *gamepad_2;
-    inputsB = *gamepad_2;
-    last_inputs2 = inputs2;
-    inputs2 = ~((((int) inputsB) << 8) | inputsA);
-    inputs2 &= INPUT_MASK_ALL_KEYS;
-}
-#pragma optimize(on)
 
 void Sleep(int frames) {
     int i;
