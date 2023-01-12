@@ -17,7 +17,13 @@
 ; Non-maskable interrupt (NMI) service routine
 
 _nmi_int:  
+           PHA
+           PHX
+           PHY
            JSR _NMIHandler
+           PLY
+           PLX
+           PLA
            RTI                    ; Return from all NMI interrupts
 
 ; ---------------------------------------------------------------------------
