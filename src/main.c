@@ -15,6 +15,8 @@ void Sleep(int frames) {
 
 extern void wait();
 char i;
+char did_init_music = 0;
+char music_cnt = 0;
 void main() {
 
     init_dynawave();
@@ -66,9 +68,9 @@ void main() {
 
     }
 
+    did_init_music = 1;
     while(1){
         updateInputs();
-        tick_music();
         
         //CLS(BG_COLOR);
         
@@ -106,4 +108,10 @@ void IRQHandler() {
 void NMIHandler() {
     ++nmi_count;
     frameflag = 0;
+    if(did_init_music) {
+        if(++music_cnt == 3) {
+            music_cnt = 0;
+            tick_music();
+        }
+    }
 }

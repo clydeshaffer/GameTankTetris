@@ -20,6 +20,8 @@ ASSETDEPS = assets/gamesprites.gtg.deflate assets/bg.gtg.deflate lib/dynawave.ac
 bin/tetris.gtr: $(AOBJS) $(COBJS) $(LLIBS) sprites
 	mkdir -p $(@D)
 	$(LN) $(LFLAGS) $(AOBJS) $(COBJS) -o $@ $(LLIBS)
+	head -c 16384 $@ > $@.bankFE
+	tail -c 16384 $@ > $@.bankFF
 
 $(ODIR)/assets.o: src/assets.s sprites
 	mkdir -p $(@D)
