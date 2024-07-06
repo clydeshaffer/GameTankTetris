@@ -10,12 +10,12 @@ LLIBS = lib/gametank.lib
 SDIR = src
 ODIR = build
 
-_COBJS = gametank.o dynawave.o music.o drawing_funcs.o tetris.o main.o
+_COBJS = gametank.o dynawave.o music.o drawing_funcs.o input.o tetris.o main.o
 COBJS = $(patsubst %,$(ODIR)/%,$(_COBJS))
 _AOBJS = assets.o wait.o vectors.o interrupt.o
 AOBJS = $(patsubst %,$(ODIR)/%,$(_AOBJS))
 
-ASSETDEPS = assets/gamesprites.gtg.deflate lib/dynawave.acp.deflate lib/inflate_e000_0200.obx
+ASSETDEPS = assets/gamesprites.gtg.deflate assets/bg.gtg.deflate lib/dynawave.acp.deflate lib/inflate_e000_0200.obx
 
 bin/tetris.gtr: $(AOBJS) $(COBJS) $(LLIBS) sprites
 	mkdir -p $(@D)
@@ -45,10 +45,12 @@ lib/gametank.lib: src/crt0.s
 	$(AS) src/crt0.s -o build/crt0.o
 	ar65 a lib/gametank.lib build/crt0.o
 
-sprites: assets/gamesprites.bmp
+sprites: assets/gamesprites.bmp assets/bg.bmp
 	cd assets ;\
 	tail -c 16384 gamesprites.bmp > gamesprites.gtg ;\
-	zopfli --deflate gamesprites.gtg
+	zopfli --deflate gamesprites.gtg ;\
+	tail -c 16384 bg.bmp > bg.gtg ;\
+	zopfli --deflate bg.gtg
 
 .PHONY: clean
 

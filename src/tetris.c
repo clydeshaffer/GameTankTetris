@@ -7,6 +7,9 @@
 #include "tetris.h"
 #include "gametank.h"
 
+PlayerState players[2];
+char playField_0[FIELD_W*FIELD_H];
+char playField_1[FIELD_W*FIELD_H];
 char tmpPieceBuf[PIECEBUF_SIZE];
 
 const unsigned char rotation_matrix[PIECEBUF_SIZE] = {
@@ -160,10 +163,14 @@ int test_at(PiecePos* pos, char* pieceBuf, char* field) {
     return 1;
 }
 
-int hard_drop(PiecePos* pos, char* pieceBuf, char* field) {
-    char pc, pr, fc, fr;
-    char *pieceCursor;
-    char finalY = FIELD_H;
+int hard_drop(PiecePos* pos, char* pbp, char* ffp) {
+    static char pc, pr, fc, fr;
+    static char *pieceCursor;
+    static char finalY;
+    static char* pieceBuf, *field;
+    pieceBuf = pbp;
+    field = ffp;
+    finalY = FIELD_H;
     for(pc = 0; pc < PIECEBUF_WIDTH; pc++) {
         pieceCursor = pieceBuf + PIECEBUF_WIDTH * (PIECEBUF_WIDTH-1) + pc;
         fc = pc + pos->x - 2;
@@ -277,8 +284,10 @@ const int cornerOffsets[5] = {
     0 - FIELD_W - 1
 };
 
-char checkTSpin(char* playField, PiecePos* pos) {
+char checkTSpin(char* pfp, PiecePos* pos) {
+    static char* playField;
     char center = (pos->y * FIELD_W) + pos->x, count = 0;
+    playField = pfp;
     count += !!playField[center - FIELD_W - 1] || (pos->x == 0);
     count += !!playField[center - FIELD_W + 1] || (pos->x == FIELD_W-1);
     count += !!playField[center + FIELD_W - 1] || (pos->x == 0) || (pos->y == FIELD_H-1);
@@ -298,8 +307,13 @@ char checkTSpin(char* playField, PiecePos* pos) {
     }
 }
 
-char checkLineClears(char* playField, char topBound, char botBound) {
-    char r, c, i = (FIELD_W*(botBound+1)) - 1, j, clearCount = 0, blocks = 0;
+char checkLineClears(char* pfp, char topBound, char botBound) {
+    static char r, c, i, j, clearCount, blocks;
+    static char* playField;
+    playField = pfp;
+    i = (FIELD_W*(botBound+1)) - 1;
+    clearCount = 0;
+    blocks = 0;
     for(r = botBound; r >= topBound; r--) {
         blocks = 0;
         for(c = 0; c < FIELD_W; c++) {
@@ -387,10 +401,19 @@ void initPlayerState(PlayerState* player) {
     player->flags = 0;
     player->pendingGarbage = 0;
     player->combo = 0;
+    player->heldPiece.x = 0;
+    player->heldPiece.y = 0;
 }
 
-char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
-    char oldX, oldY, tmp, tmp2, tSpinType, garbageOut = 0;
+char updatePlayerState(PlayerState* p, int inp, int last_inp) {
+    static char oldX, oldY, tmp, tmp2, tSpinType, garbageOut;
+    static int tmpscore;
+    static int inputs, last_inputs;
+    static PlayerState* player;
+    inputs = inp;
+    last_inputs = last_inp;
+    player = p;
+    garbageOut = 0;
     if(player->flags & PLAYER_DEAD) {
         return 0;
     }
@@ -463,8 +486,13 @@ char updatePlayerState(PlayerState* player, int inputs, int last_inputs) {
                             tmp2 += 2;
                         }
                         tmp = checkLineClears(player->playField, tmp, tmp2);
+                        tmpscore = player->score;
 
-                        player->score += tmp;
+                        asm("SED");
+                        tmpscore += tmp;
+                        asm("CLD");
+
+                        player->score = tmpscore;
 
                         garbageOut = garbageTable[tmp + (4 * (tSpinType == T_SPIN_FULL))];
 

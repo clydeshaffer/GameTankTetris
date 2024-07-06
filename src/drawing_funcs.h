@@ -30,7 +30,8 @@ void printnum(int num);
 
 void print(char* str);
 
-void draw_field(char* field, char x, char y);
+void draw_field0(char x, char y);
+void draw_field1(char x, char y);
 
 void draw_piece(PiecePos* pos, const char* piece, char offsetX, char offsetY);
 

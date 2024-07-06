@@ -17,6 +17,7 @@
 #define BUTTONS_P2 8
 
 extern unsigned int inputs[NUM_CONTROLLERS];
+extern unsigned int last_inputs[NUM_CONTROLLERS];
 extern char inputTimes[NUM_BUTTONS * NUM_CONTROLLERS];
 
 void updateInputs();

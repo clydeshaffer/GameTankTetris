@@ -7,6 +7,8 @@
 #define SPAWN_ROW 1
 #define SPAWN_COL 4
 
+#define PLAYER_COUNT 2
+
 #define PIECEBUF_WIDTH 5
 #define PIECEBUF_SIZE 25
 #define NUM_KICKTESTS 5
@@ -31,8 +33,9 @@ typedef struct {
 #define PLAYER_BACK_TO_BACK 4
 
 typedef struct {
+    char playernum;
     char field_offset_x, field_offset_y;
-    char playField[FIELD_W*FIELD_H];
+    char* playField;
     char currentPiece[PIECEBUF_SIZE];
     PiecePos currentPos;
     PiecePos heldPiece;
@@ -45,6 +48,10 @@ typedef struct {
     char bag_index;
     char bag_anim;
 } PlayerState;
+
+extern PlayerState players[PLAYER_COUNT];
+extern char playField_0[FIELD_W*FIELD_H];
+extern char playField_1[FIELD_W*FIELD_H];
 
 extern const unsigned char tetro_index[TET_COUNT];
 extern const unsigned char tetrominoes[PIECEBUF_SIZE*7];
