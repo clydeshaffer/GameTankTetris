@@ -33,6 +33,7 @@ typedef struct {
 #define PLAYER_BACK_TO_BACK 4
 
 typedef struct {
+    char movetime;
     char playernum;
     char field_offset_x, field_offset_y;
     char* playField;

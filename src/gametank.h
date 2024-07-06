@@ -80,6 +80,6 @@
 #define IFR 13
 #define IER 14
 
-extern char frameflag, frameflip, bankflip, flagsMirror;
+extern char nmi_count, frameflag, frameflip, bankflip, flagsMirror;
 
 #endif

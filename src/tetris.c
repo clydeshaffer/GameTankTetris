@@ -232,10 +232,16 @@ void rotateLeft(char* pieceBuf) {
     }
 }
 
-void tryRotate(PiecePos* pos, char* pieceBuf, char* field, char direction) {
-    char newRot = (pos->rot + direction + 4) % 4;
-    char oldX = pos->x, oldY = pos->y, i;
-    char* kicksrc, *kickdst;
+void tryRotate(PiecePos* posp, char* pieceBuf, char* field, char direction) {
+    static char newRot;
+    static char oldX, oldY, i;
+    static char* kicksrc, *kickdst;
+    static PiecePos *pos;
+    pos = posp;
+    newRot = (pos->rot + direction + 4) % 4;
+    oldX = pos->x;
+    oldY = pos->y;
+    
     if(pos->t == TET_O) {
         return;
     }
@@ -284,18 +290,19 @@ const int cornerOffsets[5] = {
     0 - FIELD_W - 1
 };
 
-char checkTSpin(char* pfp, PiecePos* pos) {
-    static char* playField;
-    char center = (pos->y * FIELD_W) + pos->x, count = 0;
-    playField = pfp;
-    count += !!playField[center - FIELD_W - 1] || (pos->x == 0);
-    count += !!playField[center - FIELD_W + 1] || (pos->x == FIELD_W-1);
-    count += !!playField[center + FIELD_W - 1] || (pos->x == 0) || (pos->y == FIELD_H-1);
-    count += !!playField[center + FIELD_W + 1] || (pos->x == FIELD_W-1) || (pos->y == FIELD_H-1);
+char checkTSpin0(PiecePos* pos) {
+    static char center, count, x, y, rot;
+    center = (pos->y * FIELD_W) + pos->x;
+    count = 0;
+    x = pos->x; y = pos->y; rot = pos->rot;
+    count += !!playField_0[center - FIELD_W - 1] || (x == 0);
+    count += !!playField_0[center - FIELD_W + 1] || (x == FIELD_W-1);
+    count += !!playField_0[center + FIELD_W - 1] || (x == 0) || (y == FIELD_H-1);
+    count += !!playField_0[center + FIELD_W + 1] || (x == FIELD_W-1) || (y == FIELD_H-1);
     if(count > 2) {
         count = 0;
-        count += !!playField[center + cornerOffsets[pos->rot]];
-        count += !!playField[center + cornerOffsets[pos->rot+1]];
+        count += !!playField_0[center + cornerOffsets[rot]];
+        count += !!playField_0[center + cornerOffsets[rot+1]];
 
         if(count == 2) {
             return T_SPIN_FULL;
@@ -307,24 +314,68 @@ char checkTSpin(char* pfp, PiecePos* pos) {
     }
 }
 
-char checkLineClears(char* pfp, char topBound, char botBound) {
+char checkTSpin1(PiecePos* pos) {
+    static char center, count, x, y, rot;
+    center = (pos->y * FIELD_W) + pos->x;
+    count = 0;
+    x = pos->x; y = pos->y; rot = pos->rot;
+    count += !!playField_1[center - FIELD_W - 1] || (x == 0);
+    count += !!playField_1[center - FIELD_W + 1] || (x == FIELD_W-1);
+    count += !!playField_1[center + FIELD_W - 1] || (x == 0) || (y == FIELD_H-1);
+    count += !!playField_1[center + FIELD_W + 1] || (x == FIELD_W-1) || (y == FIELD_H-1);
+    if(count > 2) {
+        count = 0;
+        count += !!playField_1[center + cornerOffsets[rot]];
+        count += !!playField_1[center + cornerOffsets[rot+1]];
+
+        if(count == 2) {
+            return T_SPIN_FULL;
+        } else {
+            return T_SPIN_MINI;
+        }
+    } else {
+        return T_SPIN_NONE;
+    }
+}
+
+char checkLineClears0(char topBound, char botBound) {
     static char r, c, i, j, clearCount, blocks;
-    static char* playField;
-    playField = pfp;
     i = (FIELD_W*(botBound+1)) - 1;
     clearCount = 0;
     blocks = 0;
     for(r = botBound; r >= topBound; r--) {
         blocks = 0;
         for(c = 0; c < FIELD_W; c++) {
-            blocks += !!playField[i--];
+            blocks += !!playField_0[i--];
         }
         if(blocks == FIELD_W) {
             clearCount++;
             r++;
             i+=FIELD_W;
             for(j = i; j >= FIELD_W; j--) {
-                playField[j] = playField[j-FIELD_W];
+                playField_0[j] = playField_0[j-FIELD_W];
+            }
+        }
+    }
+    return clearCount;
+}
+
+char checkLineClears1(char topBound, char botBound) {
+    static char r, c, i, j, clearCount, blocks;
+    i = (FIELD_W*(botBound+1)) - 1;
+    clearCount = 0;
+    blocks = 0;
+    for(r = botBound; r >= topBound; r--) {
+        blocks = 0;
+        for(c = 0; c < FIELD_W; c++) {
+            blocks += !!playField_1[i--];
+        }
+        if(blocks == FIELD_W) {
+            clearCount++;
+            r++;
+            i+=FIELD_W;
+            for(j = i; j >= FIELD_W; j--) {
+                playField_1[j] = playField_1[j-FIELD_W];
             }
         }
     }
@@ -413,6 +464,9 @@ char updatePlayerState(PlayerState* p, int inp, int last_inp) {
     inputs = inp;
     last_inputs = last_inp;
     player = p;
+    if(~last_inputs & inputs & (INPUT_MASK_LEFT | INPUT_MASK_RIGHT)) {
+        player->movetime = nmi_count;
+    }
     garbageOut = 0;
     if(player->flags & PLAYER_DEAD) {
         return 0;
@@ -439,10 +493,12 @@ char updatePlayerState(PlayerState* p, int inp, int last_inp) {
             tryRotate(&(player->currentPos),player-> currentPiece, player->playField, 1);
         } else {
             if(inputs & INPUT_MASK_LEFT) {
-                player->currentPos.x--;
+                if(((nmi_count - player->movetime) & 0x3) == 0)
+                    player->currentPos.x--;
             }
             if(inputs & INPUT_MASK_RIGHT) {
-                player->currentPos.x++;
+                if(((nmi_count - player->movetime) & 0x3) == 0)
+                    player->currentPos.x++;
             }
             if(inputs & INPUT_MASK_DOWN) {
             player->currentPos.y++;
@@ -469,7 +525,11 @@ char updatePlayerState(PlayerState* p, int inp, int last_inp) {
                     if(player->currentPos.lock > LOCK_FRAMES) {
                         tSpinType = 0;
                         if(player->currentPos.t == TET_T) {
-                            tSpinType = checkTSpin(player->playField, &(player->currentPos));
+                            if(player->playernum)
+                                tSpinType = checkTSpin1(&(player->currentPos));
+                            else
+                                tSpinType = checkTSpin0(&(player->currentPos));
+
                         }
 
                         place_at(&(player->currentPos), player->currentPiece, player->playField);
@@ -485,7 +545,11 @@ char updatePlayerState(PlayerState* p, int inp, int last_inp) {
                         } else {
                             tmp2 += 2;
                         }
-                        tmp = checkLineClears(player->playField, tmp, tmp2);
+                        if(player->playernum) {
+                            tmp = checkLineClears1(tmp, tmp2);
+                        } else {
+                            tmp = checkLineClears0(tmp, tmp2);
+                        }
                         tmpscore = player->score;
 
                         asm("SED");

@@ -104,5 +104,6 @@ void IRQHandler() {
 }
 
 void NMIHandler() {
+    ++nmi_count;
     frameflag = 0;
 }

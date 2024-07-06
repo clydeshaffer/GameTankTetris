@@ -4,7 +4,7 @@ LN = ld65
 
 CFLAGS = -t none -O --cpu 65sc02
 AFLAGS = --cpu 65C02 --bin-include-dir lib --bin-include-dir assets
-LFLAGS = -C gametank-32k.cfg -m out.map
+LFLAGS = -C gametank-32k.cfg -m $(ODIR)/out.map
 LLIBS = lib/gametank.lib
 
 SDIR = src
