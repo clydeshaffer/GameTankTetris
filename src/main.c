@@ -13,10 +13,15 @@ void Sleep(int frames) {
     }
 }
 
+#define GAME_STATE_TITLE 0
+#define GAME_STATE_PLAY_SINGLE 1
+#define GAME_STATE_PLAY_DUEL 2
 extern void wait();
 char i;
 char did_init_music = 0;
 char music_cnt = 0;
+char game_state = GAME_STATE_TITLE;
+char mode_select = 0;
 void main() {
 
     init_dynawave();
@@ -68,30 +73,48 @@ void main() {
 
     }
 
-    did_init_music = 1;
     while(1){
         updateInputs();
         
-        //CLS(BG_COLOR);
-        
-        *banking_reg = bankflip | 1;
-        SpriteRect(0, 0, 127, 127, 0, 0);
+        if(game_state == GAME_STATE_TITLE) {
+            *banking_reg = bankflip | 2;
+            SpriteRect(0, 0, 127, 127, 0, 0);
+            if(inputs[0] & INPUT_MASK_START) {
+                if(mode_select)
+                    game_state = GAME_STATE_PLAY_DUEL;
+                else
+                    game_state = GAME_STATE_PLAY_SINGLE;
+                did_init_music = 1;
+            }
+            if(inputs[0] & ~last_inputs[0] & (INPUT_MASK_UP | INPUT_MASK_DOWN)) {
+                mode_select ^= 16;
+            }
+            wait();
+            flagsMirror &= ~DMA_TRANS;
+            *dma_flags = flagsMirror;
+            *banking_reg = bankflip;
+            SpriteRect(23, 73 + mode_select, 8, 7, 88, 113);
+        } else {
+            *banking_reg = bankflip | 1;
+            SpriteRect(0, 0, 127, 127, 0, 0);
 
-        via[ORB] = 0x80;
-        via[ORB] = 0x03;
-        players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs[0], last_inputs[0]);
-        players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs[1], last_inputs[1]);
-        via[ORB] = 0x80;
-        via[ORB] = 0x43;
-        wait();
-        *banking_reg = bankflip;
-        via[ORB] = 0x80;
-        via[ORB] = 0x00;
-        drawPlayerState(&(players[0]));
-        drawPlayerState(&(players[1]));
-        via[ORB] = 0x80;
-        via[ORB] = 0x40;
-
+            via[ORB] = 0x80;
+            via[ORB] = 0x03;
+            players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs[0], last_inputs[0]);
+            if(game_state == GAME_STATE_PLAY_DUEL)
+                players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs[1], last_inputs[1]);
+            via[ORB] = 0x80;
+            via[ORB] = 0x43;
+            wait();
+            *banking_reg = bankflip;
+            via[ORB] = 0x80;
+            via[ORB] = 0x00;
+            drawPlayerState(&(players[0]));
+            if(game_state == GAME_STATE_PLAY_DUEL)
+                drawPlayerState(&(players[1]));
+            via[ORB] = 0x80;
+            via[ORB] = 0x40;
+        }
         frameflip ^= DMA_PAGE_OUT;
         bankflip ^= BANK_VRAM_MASK;
         flagsMirror = DMA_NMI | DMA_ENABLE | DMA_IRQ | DMA_TRANS | frameflip | DMA_AUTOTILE;

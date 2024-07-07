@@ -1,4 +1,4 @@
-    .export _GameSprites, _DynaWave, _BGSprite
+    .export _GameSprites, _DynaWave, _BGSprite, _TitleSprite
 
     .RODATA
 _GameSprites:
@@ -6,6 +6,9 @@ _GameSprites:
 
 _BGSprite:
     .incbin "bg.gtg.deflate"
+
+_TitleSprite:
+    .incbin "title.gtg.deflate"
 
 _DynaWave:
     .incbin "dynawave.acp.deflate"

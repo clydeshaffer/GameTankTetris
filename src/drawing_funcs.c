@@ -9,6 +9,7 @@ char cursorX, cursorY;
 
 extern const unsigned char* GameSprites;
 extern const unsigned char* BGSprite;
+extern const unsigned char* TitleSprite;
 
 const unsigned char tetro_colors[TET_COUNT+2] = { 0 , 244, 219, 92, 61, 29, 155, 124, 5};
 
@@ -22,6 +23,8 @@ void load_spritesheet() {
     inflatemem(vram, &GameSprites);
     *banking_reg = 1;
     inflatemem(vram, &BGSprite);
+    *banking_reg = 2;
+    inflatemem(vram, &TitleSprite);
     *banking_reg = 0;
 }
 

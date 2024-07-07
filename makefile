@@ -15,7 +15,7 @@ COBJS = $(patsubst %,$(ODIR)/%,$(_COBJS))
 _AOBJS = assets.o wait.o vectors.o interrupt.o
 AOBJS = $(patsubst %,$(ODIR)/%,$(_AOBJS))
 
-ASSETDEPS = assets/gamesprites.gtg.deflate assets/bg.gtg.deflate lib/dynawave.acp.deflate lib/inflate_e000_0200.obx
+ASSETDEPS = assets/gamesprites.gtg.deflate assets/bg.gtg.deflate assets/title.bmp lib/dynawave.acp.deflate lib/inflate_e000_0200.obx
 
 bin/tetris.gtr: $(AOBJS) $(COBJS) $(LLIBS) sprites
 	mkdir -p $(@D)
@@ -51,6 +51,8 @@ sprites: assets/gamesprites.bmp assets/bg.bmp
 	cd assets ;\
 	tail -c 16384 gamesprites.bmp > gamesprites.gtg ;\
 	zopfli --deflate gamesprites.gtg ;\
+	tail -c 16384 title.bmp > title.gtg ;\
+	zopfli --deflate title.gtg ;\
 	tail -c 16384 bg.bmp > bg.gtg ;\
 	zopfli --deflate bg.gtg
 
