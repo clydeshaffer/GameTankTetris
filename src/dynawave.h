@@ -12,4 +12,6 @@ extern char pitch_table[216];
 
 void init_dynawave();
 
+void silence_audio();
+
 #endif

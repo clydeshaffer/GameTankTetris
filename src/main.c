@@ -14,8 +14,13 @@ void Sleep(int frames) {
 }
 
 #define GAME_STATE_TITLE 0
-#define GAME_STATE_PLAY_SINGLE 1
-#define GAME_STATE_PLAY_DUEL 2
+#define GAME_STATE_PLAY_SINGLE 2
+#define GAME_STATE_PLAY_DUEL 3
+#define GAME_STATE_SINGLE_END 4
+#define GAME_STATE_DUEL_END 5
+#define STATE_FLAG_END 4
+#define STATE_FLAG_DUEL 1
+
 extern void wait();
 char i;
 char did_init_music = 0;
@@ -51,27 +56,16 @@ void main() {
     *banking_reg = bankflip;
     CLB(0);
 
-    initPlayerState(&(players[0]));
+    
     players[0].playernum = 0;
     players[0].playField = playField_0;
     players[0].field_offset_x = 16;
     players[0].field_offset_y = 24;
-    players[0].heldPiece.x = 0;
-    players[0].heldPiece.y = 0;
 
-    initPlayerState(&(players[1]));
     players[1].playernum = 1;
     players[1].playField = playField_1;
     players[1].field_offset_x = 72;
     players[1].field_offset_y = 24;
-    players[1].heldPiece.x = 0;
-    players[1].heldPiece.y = 0;
-
-    for(i = 0; i < 220; ++i) {
-        playField_0[i] = 0;
-        playField_1[i] = 0;
-
-    }
 
     while(1){
         updateInputs();
@@ -79,16 +73,25 @@ void main() {
         if(game_state == GAME_STATE_TITLE) {
             *banking_reg = bankflip | 2;
             SpriteRect(0, 0, 127, 127, 0, 0);
-            if(inputs[0] & INPUT_MASK_START) {
+            if(inputs[0]& ~last_inputs[0] & INPUT_MASK_START) {
                 if(mode_select)
                     game_state = GAME_STATE_PLAY_DUEL;
                 else
                     game_state = GAME_STATE_PLAY_SINGLE;
+                init_music();
+                music_cnt = 0;
                 did_init_music = 1;
+                for(i = 0; i < 220; ++i) {
+                    playField_0[i] = 0;
+                    playField_1[i] = 0;
+                }
+                initPlayerState(&(players[0]));
+                initPlayerState(&(players[1]));
             }
             if(inputs[0] & ~last_inputs[0] & (INPUT_MASK_UP | INPUT_MASK_DOWN)) {
                 mode_select ^= 16;
             }
+            rnd();
             wait();
             flagsMirror &= ~DMA_TRANS;
             *dma_flags = flagsMirror;
@@ -100,9 +103,28 @@ void main() {
 
             via[ORB] = 0x80;
             via[ORB] = 0x03;
-            players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs[0], last_inputs[0]);
-            if(game_state == GAME_STATE_PLAY_DUEL)
-                players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs[1], last_inputs[1]);
+
+            if(game_state & STATE_FLAG_END) {
+                if(inputs[0] & ~last_inputs[0] & INPUT_MASK_START) {
+                    game_state = GAME_STATE_TITLE;    
+                } else if((game_state & STATE_FLAG_DUEL) && (inputs[1] & ~last_inputs[1] & INPUT_MASK_START)) {
+                    game_state = GAME_STATE_TITLE;    
+                }
+                if(game_state == GAME_STATE_TITLE) {
+                    initPlayerState(&(players[0]));
+                    initPlayerState(&(players[1]));
+                }
+            } else {
+                players[1].pendingGarbage += updatePlayerState(&(players[0]), inputs[0], last_inputs[0]);
+                if(game_state & STATE_FLAG_DUEL)
+                    players[0].pendingGarbage += updatePlayerState(&(players[1]), inputs[1], last_inputs[1]);
+            }
+
+            if((players[0].flags | players[1].flags) & PLAYER_DEAD) {
+                game_state |= STATE_FLAG_END;
+                did_init_music = 0;
+                silence_audio();
+            }
             via[ORB] = 0x80;
             via[ORB] = 0x43;
             wait();
@@ -110,8 +132,10 @@ void main() {
             via[ORB] = 0x80;
             via[ORB] = 0x00;
             drawPlayerState(&(players[0]));
-            if(game_state == GAME_STATE_PLAY_DUEL)
+            if(game_state & STATE_FLAG_DUEL)
                 drawPlayerState(&(players[1]));
+
+            
             via[ORB] = 0x80;
             via[ORB] = 0x40;
         }

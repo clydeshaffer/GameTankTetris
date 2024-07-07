@@ -57,6 +57,7 @@ extern char playField_1[FIELD_W*FIELD_H];
 extern const unsigned char tetro_index[TET_COUNT];
 extern const unsigned char tetrominoes[PIECEBUF_SIZE*7];
 
+int rnd();
 void initPlayerState(PlayerState* player);
 char updatePlayerState(PlayerState* player, int inputs, int last_inputs);
 

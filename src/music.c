@@ -34,6 +34,16 @@ char pattNum2 = 0;
 char *currentPattern = patterns;
 char *currentPattern2 = patterns;
 
+void init_music() {
+    metronome = BEAT_FRAMES;
+    noteNum = 0;
+    pattNum = 0;
+    noteNum2 = 0;
+    pattNum2 = 0;
+    currentPattern = patterns;
+    currentPattern2 = patterns;
+}
+
 void tick_music() {
     if(audio_amplitudes[0] > 0) {
         audio_amplitudes[0] -= 16;

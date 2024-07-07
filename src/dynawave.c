@@ -24,3 +24,10 @@ void init_dynawave()
     *audio_reset = 0;
     *audio_rate = 255;
 }
+
+void silence_audio() {
+    audio_amplitudes[0] = 0;
+    audio_amplitudes[1] = 0;
+    audio_amplitudes[2] = 0;
+    audio_amplitudes[3] = 0;
+}
